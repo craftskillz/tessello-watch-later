@@ -9,6 +9,10 @@
     "entry": "view/index.html"
   },
   "guide": "guide/guide.md",
+  "widget": {
+    "entry": "widget/index.html",
+    "size": "L"
+  },
   "permissions": {
     "network": ["https://www.youtube.com", "https://i.ytimg.com"]
   }

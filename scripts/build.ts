@@ -1,5 +1,5 @@
 // Builds the Watch Later Module into a package: manifest.json, icon.svg, the User guide, and the page, script and stylesheet
-// of the View, with Svelte and the SDK bundled in. Run with `npm run build` in this folder; the
+// of the View and the Widget, with Svelte and the SDK bundled in. Run with `npm run build` in this folder; the
 // package is written to `dist/`, ready to be zipped or placed in a Modules folder.
 
 import { copyFile, cp, mkdir, rm } from "node:fs/promises";
@@ -17,7 +17,7 @@ export const DIST = at("../dist");
 /** Writes the package into `out` (by default `dist/`), replacing what was there. */
 export async function buildPackage(out = DIST): Promise<string> {
   await rm(out, { recursive: true, force: true });
-  for (const surface of ["view"]) {
+  for (const surface of ["view", "widget"]) {
     await mkdir(`${out}/${surface}`, { recursive: true });
     await build({
       entryPoints: { app: at(`../src/${surface}/main.ts`) },

@@ -18,6 +18,7 @@ import {
   rowsByTag,
   setNote,
   setWatched,
+  toWatch,
   type Video,
 } from "../src/lib/videos.ts";
 
@@ -236,6 +237,24 @@ describe("the rows of the View", () => {
       rowsByTag([video(A, "2026-10-01T00:00:00.000Z", { tags: ["x"] })]).map(({ tag }) => tag),
       ["x"],
     );
+  });
+});
+
+describe("the videos to watch, as the Widget shows them", () => {
+  test("how many are left to watch, and the most recently added of them", () => {
+    const list = ["2026-10-01", "2026-10-05", "2026-10-03", "2026-10-02", "2026-10-04", "2026-10-06"].map((day, index) =>
+      video(String(index).repeat(11), `${day}T00:00:00.000Z`, { watched: index === 1 }),
+    );
+    const { count, latest } = toWatch(list, 4);
+    assert.equal(count, 5);
+    assert.deepEqual(
+      latest.map((item) => item.addedAt.slice(0, 10)),
+      ["2026-10-06", "2026-10-04", "2026-10-03", "2026-10-02"],
+    );
+  });
+
+  test("none when every video is watched", () => {
+    assert.deepEqual(toWatch([video(A, "2026-10-01T00:00:00.000Z", { watched: true })], 4), { count: 0, latest: [] });
   });
 });
 

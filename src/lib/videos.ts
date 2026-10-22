@@ -171,6 +171,12 @@ export function rowsByTag(videos: readonly Video[]): Row[] {
   return untagged.length ? [...rows, { tag: null, videos: untagged }] : rows;
 }
 
+/** How many videos are left to watch, and the `limit` of them added last, the newest first. */
+export function toWatch(videos: readonly Video[], limit: number): { count: number; latest: Video[] } {
+  const left = videos.filter((video) => !video.watched);
+  return { count: left.length, latest: newestFirst(left).slice(0, limit) };
+}
+
 /** The most recently added first. */
 export function newestFirst(videos: readonly Video[]): Video[] {
   return [...videos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));

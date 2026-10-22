@@ -30,6 +30,10 @@ Once you have watched a video, click **Watched** on its card; click it again to 
 
 Click **Details** on a card, or anywhere on the card but its title and thumbnail, to see its channel, when you added it and whether you watched it. Write in **Note** why you kept the video, up to 2,000 characters: the note is saved when you leave the field or close the details, and a ✎ on the card tells you it has one. **Delete** removes the video from your list once you confirm it.
 
+## On the Home
+
+The Watch Later Widget says how many videos are left to watch and shows the four you added last. Click one to open it on YouTube, or click **Open ↗** to come to this page. When nothing is left to watch, **+ Add** brings you here to add a video.
+
 ## When something goes wrong
 
 - **Your videos could not be read**: Tessello could not read what the Module saved. Nothing can be added until they are read, so that an empty list never replaces yours. Click **Try again**.

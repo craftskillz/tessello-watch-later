@@ -51,6 +51,14 @@ const en = {
   scroll_back: "Scroll {row} back",
   scroll_forward: "Scroll {row} forward",
 
+  module_name: "Watch Later",
+  widget_count: "{count} to watch",
+  widget_open: "Open",
+  widget_latest: "Latest videos to watch",
+  widget_empty: "Nothing left to watch",
+  widget_add: "+ Add",
+  widget_error: "Your videos could not be read.",
+
   added_now: "just now",
   added_minutes: "{count} min ago",
   added_hours: "{count} h ago",
@@ -113,6 +121,14 @@ const fr: Messages = {
   row_count_one: "1 vidéo",
   scroll_back: "Faire défiler {row} vers l'arrière",
   scroll_forward: "Faire défiler {row} vers l'avant",
+
+  module_name: "Watch Later",
+  widget_count: "{count} à voir",
+  widget_open: "Ouvrir",
+  widget_latest: "Dernières vidéos à voir",
+  widget_empty: "Plus rien à voir",
+  widget_add: "+ Ajouter",
+  widget_error: "Vos vidéos n'ont pas pu être lues.",
 
   added_now: "à l'instant",
   added_minutes: "il y a {count} min",
