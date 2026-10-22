@@ -20,7 +20,7 @@ A video is never added twice: if it is already in your list, even from another l
 
 ## Tags and rows
 
-Tags sort your videos by theme. In the details of a video, type a tag in **Add a tag** and press **Enter**; the tags you already use are suggested as you type. Click the **×** of a tag to take it off. Tags ignore case and extra spaces: `music` and ` Music ` are the same tag, written as you first wrote it.
+Tags sort your videos by theme. In the details of a video, type a tag in **Add a tag** and press **Enter**, or just leave the field; the tags you already use are suggested as you type, and picking one adds it. Click the **×** of a tag to take it off. Tags ignore case and extra spaces: `music` and ` Music ` are the same tag, written as you first wrote it.
 
 To tag videos as you add them, choose tags in **Tags for new videos**, under the field: every video you add next gets them, until you close the page.
 
