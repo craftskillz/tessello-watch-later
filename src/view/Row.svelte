@@ -26,11 +26,11 @@
     return () => observer.disconnect();
   });
 
-  /** Scrolls by the width of the row, less a card, so that the card at the edge stays in sight. */
+  /** Scrolls by the width of the row. */
   function scrollBy(direction: 1 | -1) {
     if (!scroller) return;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    scroller.scrollBy({ left: direction * Math.max(scroller.clientWidth - 240, 240), behavior: reduced ? "auto" : "smooth" });
+    scroller.scrollBy({ left: direction * scroller.clientWidth, behavior: reduced ? "auto" : "smooth" });
   }
 </script>
 

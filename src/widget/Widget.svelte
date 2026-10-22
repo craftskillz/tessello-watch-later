@@ -35,7 +35,7 @@
 <div class="widget">
   <header>
     <h1>{t("module_name")}</h1>
-    {#if loaded && count}
+    {#if loaded}
       <span class="count">{t("widget_count", { count })}</span>
     {/if}
     <button type="button" class="pill" onclick={() => host.openView()}>{t("widget_open")} ↗</button>

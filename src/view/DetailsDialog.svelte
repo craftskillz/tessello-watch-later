@@ -22,7 +22,7 @@
     onClose();
   }
 
-  async function del() {
+  async function confirmDelete() {
     saveNote();
     if (!(await ask(t("delete_title"), t("delete_message", { title: video.title })))) return;
     remove(video.videoId);
@@ -65,7 +65,7 @@
   </label>
   {#snippet actions()}
     <a class="wl-btn wl-open" href={watchUrl(video)} target="_blank" rel="noopener">{t("open_on_youtube")}</a>
-    <button type="button" class="wl-btn wl-btn--danger-outline" onclick={del}>{t("delete")}</button>
+    <button type="button" class="wl-btn wl-btn--danger-outline" onclick={confirmDelete}>{t("delete")}</button>
     <button type="button" class="wl-btn wl-btn--primary" onclick={close}>{t("close")}</button>
   {/snippet}
 </Modal>

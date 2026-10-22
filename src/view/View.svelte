@@ -3,7 +3,7 @@
   import { t } from "../lib/i18n.ts";
   import { droppedText } from "../lib/drop.ts";
   import { add, load, markWatched, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
-  import { allTags, holdsVideo, normalizeTag, rowsByTag, type Video } from "../lib/videos.ts";
+  import { allTags, holdsVideo, rowsByTag, type Video, withTag } from "../lib/videos.ts";
   import { pending } from "../lib/confirmation.svelte.ts";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import DetailsDialog from "./DetailsDialog.svelte";
@@ -51,27 +51,21 @@
 
   /** Empties the message before saying it, so that a screen reader says it again when it is the same. */
   async function say(message: string, undoIt: (() => void) | null = null) {
-    notice = "";
-    undo = null;
+    clearNotice();
     await tick();
     notice = message;
     undo = undoIt;
     clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(
-      () => {
-        notice = "";
-        undo = null;
-      },
-      undoIt ? 8000 : 4000,
-    );
+    noticeTimer = setTimeout(clearNotice, undoIt ? 8000 : 4000);
+  }
+
+  function clearNotice() {
+    notice = "";
+    undo = null;
   }
 
   /** Chooses a tag for the videos added next, as it was first written if it is in use. */
-  function chooseTag(tag: string) {
-    const normalized = normalizeTag(tag);
-    if (!normalized || newTags.some((other) => other.toLowerCase() === normalized.toLowerCase())) return;
-    newTags.push(allTags(videos.list).find((other) => other.toLowerCase() === normalized.toLowerCase()) ?? normalized);
-  }
+  const chooseTag = (tag: string) => (newTags = withTag(videos.list, newTags, tag));
 
   /** Marks a video as watched, or as to watch. A video it hides can be brought back from the message. */
   function toggleWatched(video: Video) {
@@ -80,8 +74,7 @@
     if (watched && settings.hideWatched) {
       void say(t("marked_watched"), () => {
         markWatched(video.videoId, false);
-        notice = "";
-        undo = null;
+        clearNotice();
       });
     }
   }

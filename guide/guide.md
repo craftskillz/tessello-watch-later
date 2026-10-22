@@ -55,7 +55,7 @@ The Watch Later Widget says how many videos are left to watch and shows the four
 - **This video is already in your list**: the video you pasted or dropped is there already; its card is highlighted a moment.
 - **This is not a YouTube video**: what you pasted or dropped is not a link to a YouTube video, so nothing was added.
 - **A link instead of a title, with Retry**: YouTube could not be reached, or the video is private. The video is kept all the same; click **Retry** once you are back online.
-- **Grey thumbnails**: you are offline. Your list, its titles, tags and notes are all still there; the thumbnails come back with the network.
+- **Thumbnails missing**: you are offline, or YouTube cannot be reached. Your list, its titles, tags and notes are all still there; the thumbnails come back with the network.
 
 ## Your data
 

@@ -132,7 +132,7 @@ export function normalizeTag(tag: string): string | null {
 const sameTag = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** `tags` with `tag` added, as it was first written in `videos`, unless it is blank or already there. */
-function withTag(videos: readonly Video[], tags: string[], tag: string): string[] {
+export function withTag(videos: readonly Video[], tags: string[], tag: string): string[] {
   const normalized = normalizeTag(tag);
   if (!normalized || tags.some((other) => sameTag(other, normalized))) return tags;
   return [...tags, allTags(videos).find((other) => sameTag(other, normalized)) ?? normalized];
