@@ -9,9 +9,12 @@ import {
   type Addition,
   addTag,
   addVideos,
+  moveSection as movedSections,
+  moveVideo,
   readMetadata,
   removeTag,
   removeVideo,
+  removeVideos,
   setNote,
   setWatched,
   type Settings,
@@ -21,7 +24,7 @@ import { oembedUrl } from "./youtube.ts";
 
 export const videos = $state<{ list: Video[] }>({ list: [] });
 
-export const settings = $state<Settings>({ hideWatched: true });
+export const settings = $state<Settings>({ hideWatched: true, collapsed: [], order: {}, sections: [] });
 
 export const status = $state({
   /** False until the videos are read, and again while they cannot be read. */
@@ -131,9 +134,46 @@ export function remove(videoId: string): void {
   void save();
 }
 
+/**
+ * Moves a video of the row of `from` before the video `before` of the row of `to`, or at its end, which changes its
+ * tag when the rows differ (videos.ts `moveVideo`). Does nothing when the move is not allowed.
+ */
+export function move(videoId: string, from: string | null, to: string | null, before: string | null): void {
+  if (!status.loaded) return;
+  const moved = moveVideo(videos.list, settings.order, videoId, from, to, before);
+  if (!moved) return;
+  const retagged = moved.videos.some((video, index) => video !== videos.list[index]);
+  videos.list = moved.videos;
+  settings.order = moved.order;
+  if (retagged) void save();
+  void saveSettings();
+}
+
+/** Moves the section `key` before, or `after`, the section `target` beside it (videos.ts `moveSection`). */
+export function moveSection(key: string, target: string, after: boolean): void {
+  if (!status.loaded) return;
+  settings.sections = movedSections(videos.list, settings.order, settings.sections, key, target, after);
+  void saveSettings();
+}
+
+/** Deletes several videos at once, such as those of a section. */
+export function removeAll(videoIds: readonly string[]): void {
+  if (!status.loaded) return;
+  videos.list = removeVideos(videos.list, videoIds);
+  void save();
+}
+
 export function setHideWatched(hideWatched: boolean): void {
   if (!status.loaded) return;
   settings.hideWatched = hideWatched;
+  void saveSettings();
+}
+
+/** Folds or unfolds a group of the View, whatever its case. */
+export function setCollapsed(group: string, collapsed: boolean): void {
+  if (!status.loaded) return;
+  const others = settings.collapsed.filter((other) => other.toLowerCase() !== group.toLowerCase());
+  settings.collapsed = collapsed ? [...others, group] : others;
   void saveSettings();
 }
 

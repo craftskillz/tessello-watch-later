@@ -114,29 +114,82 @@ export function setNote(videos: readonly Video[], videoId: string, note: string)
 
 export const removeVideo = (videos: readonly Video[], videoId: string) => videos.filter((video) => video.videoId !== videoId);
 
+export const removeVideos = (videos: readonly Video[], videoIds: readonly string[]) => videos.filter((video) => !videoIds.includes(video.videoId));
+
 export interface Settings {
   /** Whether the watched videos are left out of the View. */
   hideWatched: boolean;
+  /** The groups folded in the View, whatever their case. */
+  collapsed: string[];
+  /** The order the User gave the rows by moving their videos. */
+  order: Order;
+  /**
+   * The keys of the sections the User has moved, in the order they put them: the rows (`rowKey`) and the groups
+   * (`groupKey`) of the View, and the rows of each group, each compared only with those beside it.
+   */
+  sections: string[];
 }
+
+/**
+ * The ids of the videos of each row the User has moved a video in, in the order they put them, by the key of the row
+ * (`rowKey`).
+ */
+export type Order = Record<string, string[]>;
+
+/** The key of a row in `Order`: its tag whatever its case, `""` for the videos without a tag, since no tag is blank. */
+export const rowKey = (tag: string | null) => tag?.toLowerCase() ?? "";
+
+/** The key of a group in `Settings.sections`: its name whatever its case, then the separator, which no tag ends with. */
+export const groupKey = (group: string) => `${group.toLowerCase()}${SEPARATOR}`;
 
 /** The settings under the key `settings`; what cannot be read takes its default. */
 export function readSettings(stored: unknown): Settings {
-  return { hideWatched: record(stored).hideWatched !== false };
+  const value = record(stored);
+  const collapsed = strings(value.collapsed);
+  const order: Order = {};
+  for (const [key, ids] of Object.entries(record(value.order))) if (Array.isArray(ids)) order[key] = strings(ids);
+  return { hideWatched: value.hideWatched !== false, collapsed, order, sections: strings(value.sections) };
 }
 
-/** A tag without the spaces in excess; null when it is blank. */
+const strings = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+
+/** What separates the group of a tag from its name: `Music/Jazz` is the tag `Jazz` of the group `Music`. */
+const SEPARATOR = "/";
+
+/** The group of a tag, null when it has none, and its name in the group. */
+export function splitTag(tag: string): { group: string | null; name: string } {
+  const at = tag.indexOf(SEPARATOR);
+  return at < 0 ? { group: null, name: tag } : { group: tag.slice(0, at), name: tag.slice(at + 1) };
+}
+
+/**
+ * A tag without the spaces in excess, around its separator too; null when it is blank. A side of the separator that is
+ * blank is dropped: `Music/` is the tag `Music`.
+ */
 export function normalizeTag(tag: string): string | null {
-  return tag.trim().replace(/\s+/g, " ") || null;
+  const { group, name } = splitTag(tag);
+  const parts = [group, name].map((part) => part?.trim().replace(/\s+/g, " ")).filter((part) => !!part);
+  return parts.join(SEPARATOR) || null;
 }
 
 const sameTag = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
-/** `tags` with `tag` added, as it was first written in `videos`, unless it is blank or already there. */
+/**
+ * `tags` with `tag` added, as it was first written in `videos`, unless it is blank or already there. Its group is
+ * written as it was first written too, in another tag of the group or as a tag of its own.
+ */
 export function withTag(videos: readonly Video[], tags: string[], tag: string): string[] {
   const normalized = normalizeTag(tag);
-  if (!normalized || tags.some((other) => sameTag(other, normalized))) return tags;
-  return [...tags, allTags(videos).find((other) => sameTag(other, normalized)) ?? normalized];
+  if (!normalized) return tags;
+  const inUse = allTags(videos);
+  const { group, name } = splitTag(normalized);
+  const spelled = group === null ? normalized : `${inUse.map(groupOf).find((other) => sameTag(other, group)) ?? group}${SEPARATOR}${name}`;
+  if (tags.some((other) => sameTag(other, spelled))) return tags;
+  return [...tags, inUse.find((other) => sameTag(other, spelled)) ?? spelled];
 }
+
+/** The group of a tag, or the tag itself when it has none: the tag `Music` is the first row of the group `Music`. */
+const groupOf = (tag: string) => splitTag(tag).group ?? tag;
 
 /** Adds a tag to a video, as it was first written, unless it is blank or the video has it. */
 export function addTag(videos: readonly Video[], videoId: string, tag: string): Video[] {
@@ -163,12 +216,146 @@ export interface Row {
   videos: Video[];
 }
 
-/** One row per tag, in alphabetical order, then the videos without a tag; the newest first in each, and no empty row. */
-export function rowsByTag(videos: readonly Video[]): Row[] {
+/**
+ * One row per tag, in alphabetical order, then the videos without a tag, and no empty row. In each, the videos the User
+ * has not moved come first, the newest first, then the others in the `order` they were given.
+ */
+export function rowsByTag(videos: readonly Video[], order: Order = {}): Row[] {
   const newest = newestFirst(videos);
   const rows: Row[] = allTags(videos).map((tag) => ({ tag, videos: newest.filter((video) => video.tags.some((other) => sameTag(other, tag))) }));
   const untagged = newest.filter((video) => !video.tags.length);
-  return untagged.length ? [...rows, { tag: null, videos: untagged }] : rows;
+  return (untagged.length ? [...rows, { tag: null, videos: untagged }] : rows).map((row) => ({ ...row, videos: arrange(row.videos, order[rowKey(row.tag)]) }));
+}
+
+/** The videos of a row, newest first, with those never moved first, then those `placed`, in their order. */
+function arrange(newest: Video[], placed: readonly string[] = []): Video[] {
+  const rank = new Map(placed.map((videoId, index) => [videoId, index]));
+  const ranked = newest.filter((video) => rank.has(video.videoId)).sort((a, b) => rank.get(a.videoId)! - rank.get(b.videoId)!);
+  return [...newest.filter((video) => !rank.has(video.videoId)), ...ranked];
+}
+
+/**
+ * Whether a video may be moved from the row of `from` to the row of `to`, a null tag being the row of the videos
+ * without a tag: only a video whose sole tag is `from` may be moved there, since it keeps its other tags.
+ */
+export function canMove(videos: readonly Video[], videoId: string, from: string | null, to: string | null): boolean {
+  const video = videos.find((item) => item.videoId === videoId);
+  if (!video) return false;
+  return to !== null || video.tags.every((tag) => from !== null && sameTag(tag, from));
+}
+
+/**
+ * Moves a video of the row of `from` before the video `before` of the row of `to`, or at its end when `before` is
+ * null. Moved to another row, the video loses the tag `from` and takes the tag `to`, as it was first written. The
+ * order kept is that of the rows that still exist. Null when the move is not allowed (`canMove`).
+ */
+export function moveVideo(
+  videos: readonly Video[],
+  order: Order,
+  videoId: string,
+  from: string | null,
+  to: string | null,
+  before: string | null,
+): { videos: Video[]; order: Order } | null {
+  if (!canMove(videos, videoId, from, to)) return null;
+  let list = [...videos];
+  if (rowKey(from) !== rowKey(to)) {
+    if (from !== null) list = removeTag(list, videoId, from);
+    if (to !== null) list = addTag(list, videoId, to);
+  }
+  const rows = rowsByTag(list, order);
+  const ids = rows.find((row) => rowKey(row.tag) === rowKey(to))!.videos.map((video) => video.videoId);
+  const others = ids.filter((id) => id !== videoId);
+  // Before itself is where it already is.
+  const at = before === videoId ? ids.indexOf(videoId) : before === null ? -1 : others.indexOf(before);
+  others.splice(at < 0 ? others.length : at, 0, videoId);
+  const moved: Order = { ...order, [rowKey(to)]: others };
+  const kept: Order = {};
+  for (const { tag, videos: shown } of rows) {
+    const placed = moved[rowKey(tag)];
+    if (placed) kept[rowKey(tag)] = placed.filter((id) => shown.some((video) => video.videoId === id));
+  }
+  return { videos: list, order: kept };
+}
+
+/**
+ * The videos of a section of the View, watched or not: those with the tag of a row, without a tag when it is null, or
+ * with a tag of a group. `elsewhere` counts those of them that are in other sections too.
+ */
+export function sectionVideos(videos: readonly Video[], section: { tag: string | null } | { group: string }): { videos: Video[]; elsewhere: number } {
+  const inSection = (tag: string) => ("group" in section ? sameTag(groupOf(tag), section.group) : section.tag !== null && sameTag(tag, section.tag));
+  const found = videos.filter((video) => ("tag" in section && section.tag === null ? !video.tags.length : video.tags.some(inSection)));
+  return { videos: found, elsewhere: found.filter((video) => !video.tags.every(inSection)).length };
+}
+
+/** A group of the View: the rows of its tags, and how many videos they hold, each counted once. */
+export interface Group {
+  group: string;
+  rows: Row[];
+  count: number;
+}
+
+/** What the View shows, from top to bottom: a row, or a group of rows. */
+export type Shelf = ({ kind: "row" } & Row) | ({ kind: "group" } & Group);
+
+/**
+ * The rows of `rowsByTag`, with the rows of the tags of a group gathered in it, in the same order: the tag `Music`,
+ * when there is a group `Music`, is its first row. The groups and the tags without one are thus in alphabetical order,
+ * then come the videos without a tag. The videos of each row are in the `order` of `rowsByTag`.
+ */
+export function shelves(videos: readonly Video[], order: Order = {}, sections: readonly string[] = []): Shelf[] {
+  const rows = rowsByTag(videos, order);
+  const groups = new Map<string, { kind: "group" } & Group>();
+  for (const { tag } of rows) {
+    const group = tag === null ? null : splitTag(tag).group;
+    if (group !== null && !groups.has(group.toLowerCase())) groups.set(group.toLowerCase(), { kind: "group", group, rows: [], count: 0 });
+  }
+  const shown: Shelf[] = [];
+  for (const row of rows) {
+    const group = row.tag === null ? undefined : groups.get(groupOf(row.tag).toLowerCase());
+    if (!group) shown.push({ kind: "row", ...row });
+    else if (group.rows.push(row) === 1) shown.push(group);
+  }
+  for (const group of groups.values()) {
+    group.count = new Set(group.rows.flatMap((row) => row.videos.map((video) => video.videoId))).size;
+    group.rows = arrangeSections(group.rows, (row) => rowKey(row.tag), sections);
+  }
+  return arrangeSections(shown, shelfKey, sections);
+}
+
+/** The key of a row or a group of the View in `Settings.sections`. */
+export const shelfKey = (shelf: Shelf) => (shelf.kind === "group" ? groupKey(shelf.group) : rowKey(shelf.tag));
+
+/** The sections the User has moved first, in the order they put them, then the others in their own order. */
+function arrangeSections<T>(items: T[], keyOf: (item: T) => string, sections: readonly string[]): T[] {
+  const rank = new Map(sections.map((key, index) => [key, index]));
+  const ranked = items.filter((item) => rank.has(keyOf(item))).sort((a, b) => rank.get(keyOf(a))! - rank.get(keyOf(b))!);
+  return [...ranked, ...items.filter((item) => !rank.has(keyOf(item)))];
+}
+
+/**
+ * The order of the sections once the section `key` is moved before, or `after`, the section `target` beside it: two
+ * rows or groups of the View, or two rows of the same group. Every section beside them is then placed, so that a
+ * section that comes later lands after them. Keys of sections that no longer exist are forgotten. The order is the same
+ * when the two sections are not side by side.
+ */
+export function moveSection(
+  videos: readonly Video[],
+  order: Order,
+  sections: readonly string[],
+  key: string,
+  target: string,
+  after: boolean,
+): string[] {
+  const shown = shelves(videos, order, sections);
+  const levels = [shown.map(shelfKey), ...shown.flatMap((shelf) => (shelf.kind === "group" ? [shelf.rows.map((row) => rowKey(row.tag))] : []))];
+  const existing = new Set(levels.flat());
+  const kept = sections.filter((other) => existing.has(other));
+  const level = levels.find((keys) => keys.includes(key));
+  if (!level?.includes(target) || key === target) return kept;
+  const others = level.filter((other) => other !== key);
+  others.splice(others.indexOf(target) + (after ? 1 : 0), 0, key);
+  return [...others, ...kept.filter((other) => !level.includes(other))];
 }
 
 /** How many videos are left to watch, and the `limit` of them added last, the newest first. */

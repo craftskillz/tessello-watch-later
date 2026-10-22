@@ -26,6 +26,20 @@ To tag videos as you add them, choose tags in **Tags for new videos**, under the
 
 The page shows one row per tag, in alphabetical order, then a **No tag** row for the videos without one. A video with two tags is in both rows. Each row says how many videos it holds and scrolls sideways: with a trackpad, with **Shift** and the mouse wheel, with a finger, or with the **‹ ›** buttons. The page itself scrolls from one tag to the next. In each row, the newest videos come first, and each card says when you added it.
 
+To sort your tags in two levels, write a group before the tag, with a slash: `Music/Jazz` is the tag **Jazz** of the group **Music**. A group is a section of the page, with one row per tag of the group; a tag `Music` of its own is its first row. Click the name of a group to fold or unfold it: the page remembers the groups you folded.
+
+### Moving a video
+
+Drag a card with the mouse to put it elsewhere: a bar shows where it will land. Dropped in its own row, it changes place, and the row keeps the order you gave it; videos you add next come first, before those you placed. Dropped in another row, it leaves the tag of its row for the tag of the other one, and keeps its other tags. A video with other tags cannot go to **No tag**: take them off in its details first.
+
+### Moving a row or a group
+
+Drag a row by its header, or a group by its name, to put it above or below another: a bar shows where it will land, depending on whether you drop on the upper or lower half of the other section. The rows of a group move among themselves, inside the group. The page remembers the order you gave; a new tag comes after the sections you placed.
+
+### Deleting a whole section
+
+Point at the header of a row, or at the name of a group, and click **Delete** to delete all its videos at once, the watched ones too, even when they are hidden. The page asks you to confirm first, and tells you how many videos go. A video that is also in other sections leaves them too, since it is deleted from your list.
+
 ## Watching
 
 Click the thumbnail or the title of a video to open it on YouTube, in a new tab. Videos play on YouTube rather than in Tessello: Tessello does not let a Module embed another site's page, not even YouTube's player.

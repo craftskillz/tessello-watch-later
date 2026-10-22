@@ -6,7 +6,10 @@ import {
   addVideo,
   addVideos,
   allTags,
+  canMove,
   holdsVideo,
+  moveSection,
+  moveVideo,
   NOTE_MAX,
   newestFirst,
   readMetadata,
@@ -15,9 +18,13 @@ import {
   relativeTime,
   removeTag,
   removeVideo,
+  removeVideos,
+  sectionVideos,
   rowsByTag,
   setNote,
   setWatched,
+  shelfKey,
+  shelves,
   toWatch,
   type Video,
 } from "../src/lib/videos.ts";
@@ -240,6 +247,191 @@ describe("the rows of the View", () => {
   });
 });
 
+describe("moving a video in the View", () => {
+  const C = "ccccccccccc";
+  const ids = (rows: ReturnType<typeof rowsByTag>) => rows.map(({ tag, videos }) => [tag, videos.map((item) => item.videoId)]);
+  const list = [
+    video(A, "2026-10-01T00:00:00.000Z", { tags: ["Music"] }),
+    video(B, "2026-10-02T00:00:00.000Z", { tags: ["Music"] }),
+    video(C, "2026-10-03T00:00:00.000Z", { tags: ["Music", "Code"] }),
+  ];
+
+  test("in its row, before another video or at the end, which the row then keeps", () => {
+    const first = moveVideo(list, {}, A, "Music", "Music", C)!;
+    assert.deepEqual(first.videos, list, "its tags do not change");
+    assert.deepEqual(first.order, { music: [A, C, B] });
+    assert.deepEqual(ids(rowsByTag(first.videos, first.order)), [
+      ["Code", [C]],
+      ["Music", [A, C, B]],
+    ]);
+    assert.deepEqual(moveVideo(list, first.order, A, "music", "MUSIC", null)!.order, { music: [C, B, A] });
+    assert.deepEqual(moveVideo(list, first.order, C, "Music", "Music", C)!.order, first.order, "before itself, it stays");
+  });
+
+  test("a video the User has not moved comes first, the newest first", () => {
+    const D = "ddddddddddd";
+    const more = [...list, video(D, "2026-10-04T00:00:00.000Z", { tags: ["Music"] })];
+    assert.deepEqual(ids(rowsByTag(more, { music: [A, C, B] }))[1], ["Music", [D, A, C, B]]);
+  });
+
+  test("to another row, it loses the tag of the row it leaves and takes the tag of the other, as first written", () => {
+    const moved = moveVideo(list, { music: [A, C, B] }, A, "Music", "code", C)!;
+    assert.deepEqual(moved.videos[0].tags, ["Code"]);
+    assert.deepEqual(moved.order, { code: [A, C], music: [C, B] });
+    assert.deepEqual(ids(rowsByTag(moved.videos, moved.order)), [
+      ["Code", [A, C]],
+      ["Music", [C, B]],
+    ]);
+  });
+
+  test("a video already in the other row only loses the tag it leaves", () => {
+    const moved = moveVideo(list, {}, C, "Code", "Music", null)!;
+    assert.deepEqual(moved.videos[2].tags, ["Music"]);
+    assert.deepEqual(moved.order, { music: [B, A, C] });
+  });
+
+  test("to the videos without a tag, only when it has no other tag; out of them, it takes the tag of the row", () => {
+    assert.equal(canMove(list, C, "Music", null), false);
+    assert.equal(moveVideo(list, {}, C, "Music", null, null), null);
+    const untagged = moveVideo(list, {}, A, "Music", null, null)!;
+    assert.deepEqual(untagged.videos[0].tags, []);
+    assert.deepEqual(ids(rowsByTag(untagged.videos, untagged.order)).at(-1), [null, [A]]);
+    assert.deepEqual(moveVideo(untagged.videos, untagged.order, A, null, "Code", null)!.videos[0].tags, ["Code"]);
+    assert.equal(canMove(list, "zzzzzzzzzzz", "Music", "Code"), false);
+  });
+
+  test("the order of a row that no longer exists, or of a video no longer in it, is forgotten", () => {
+    const moved = moveVideo(list, { code: [C], gone: [A], music: [A, "zzzzzzzzzzz", B] }, C, "Code", "Music", A)!;
+    assert.deepEqual(moved.order, { music: [C, A, B] });
+  });
+});
+
+describe("the videos of a section", () => {
+  const C = "ccccccccccc";
+  const D = "ddddddddddd";
+  const list = [
+    video(A, "2026-10-01T00:00:00.000Z", { tags: ["Music"], watched: true }),
+    video(B, "2026-10-02T00:00:00.000Z", { tags: ["music/Jazz", "Code"] }),
+    video(C, "2026-10-03T00:00:00.000Z", { tags: ["Musical"] }),
+    video(D, "2026-10-04T00:00:00.000Z"),
+  ];
+  const found = (section: Parameters<typeof sectionVideos>[1]) => {
+    const { videos, elsewhere } = sectionVideos(list, section);
+    return [videos.map((item) => item.videoId), elsewhere];
+  };
+
+  test("a row holds the videos with its tag, whatever its case, watched or not; and those also elsewhere are counted", () => {
+    assert.deepEqual(found({ tag: "MUSIC" }), [[A], 0]);
+    assert.deepEqual(found({ tag: "Code" }), [[B], 1]);
+    assert.deepEqual(found({ tag: null }), [[D], 0]);
+  });
+
+  test("a group holds the videos with any of its tags, its own tag too, but not a tag that only starts like it", () => {
+    assert.deepEqual(found({ group: "Music" }), [[A, B], 1]);
+  });
+
+  test("they are deleted at once", () => {
+    assert.deepEqual(
+      removeVideos(list, [A, D]).map((item) => item.videoId),
+      [B, C],
+    );
+  });
+});
+
+describe("moving a section in the View", () => {
+  const C = "ccccccccccc";
+  const D = "ddddddddddd";
+  const list = [
+    video(A, "2026-10-01T00:00:00.000Z", { tags: ["Ambient"] }),
+    video(B, "2026-10-02T00:00:00.000Z", { tags: ["Music/Jazz", "Music/Rock"] }),
+    video(C, "2026-10-03T00:00:00.000Z", { tags: ["Code"] }),
+    video(D, "2026-10-04T00:00:00.000Z"),
+  ];
+  const layout = (sections: string[]) =>
+    shelves(list, {}, sections).map((shelf) => (shelf.kind === "group" ? [shelf.group, shelf.rows.map((row) => row.tag)] : shelf.tag));
+
+  test("a row or a group goes above or below another, and every section beside them is placed", () => {
+    assert.deepEqual(layout([]), ["Ambient", "Code", ["Music", ["Music/Jazz", "Music/Rock"]], null]);
+    const sections = moveSection(list, {}, [], "", "ambient", false);
+    assert.deepEqual(sections, ["", "ambient", "code", "music/"]);
+    assert.deepEqual(layout(sections), [null, "Ambient", "Code", ["Music", ["Music/Jazz", "Music/Rock"]]]);
+    assert.deepEqual(moveSection(list, {}, sections, "music/", "ambient", true), ["", "ambient", "music/", "code"]);
+  });
+
+  test("the rows of a group go above or below one another, without changing the order around the group", () => {
+    const sections = moveSection(list, {}, ["code", "music/"], "music/rock", "music/jazz", false);
+    assert.deepEqual(sections, ["music/rock", "music/jazz", "code", "music/"]);
+    assert.deepEqual(layout(sections), ["Code", ["Music", ["Music/Rock", "Music/Jazz"]], "Ambient", null]);
+  });
+
+  test("a section that is not beside the other, or that no longer exists, does not move, and gone keys are forgotten", () => {
+    assert.deepEqual(moveSection(list, {}, ["gone", "code"], "music/rock", "ambient", false), ["code"]);
+    assert.deepEqual(moveSection(list, {}, ["code"], "code", "code", true), ["code"]);
+    assert.deepEqual(moveSection(list, {}, [], "gone", "code", true), []);
+  });
+
+  test("a section not yet placed comes after those placed, in its own order", () => {
+    assert.deepEqual(layout(["music/", "code"]), [["Music", ["Music/Jazz", "Music/Rock"]], "Code", "Ambient", null]);
+    assert.deepEqual(shelves(list).map(shelfKey), ["ambient", "code", "music/", ""]);
+  });
+});
+
+describe("the groups of tags", () => {
+  const C = "ccccccccccc";
+  const D = "ddddddddddd";
+
+  test("the spaces in excess around the separator are removed, and a blank side is dropped", () => {
+    const list = [video(A, "2026-10-01T00:00:00.000Z")];
+    assert.deepEqual(addTag(list, A, "  Music  /   jazz  rock ")[0].tags, ["Music/jazz rock"]);
+    assert.deepEqual(addTag(list, A, "Music/ ")[0].tags, ["Music"]);
+    assert.deepEqual(addTag(list, A, " /Jazz")[0].tags, ["Jazz"]);
+    assert.deepEqual(addTag(list, A, " / "), list);
+  });
+
+  test("a group keeps the case it was first written in, in another tag of the group or as a tag of its own", () => {
+    const list = [video(A, "2026-10-01T00:00:00.000Z", { tags: ["Music/Jazz"] }), video(B, "2026-10-02T00:00:00.000Z", { tags: ["Code"] })];
+    assert.deepEqual(addTag(list, B, "music/Rock")[1].tags, ["Code", "Music/Rock"]);
+    assert.deepEqual(addTag(list, A, "CODE/Svelte")[0].tags, ["Music/Jazz", "Code/Svelte"]);
+    assert.deepEqual(addTag(list, B, "MUSIC/jazz")[1].tags, ["Code", "Music/Jazz"]);
+  });
+
+  test("the rows of a group are gathered in it, its own tag first, and the groups are in alphabetical order among the tags", () => {
+    const list = [
+      video(A, "2026-10-01T00:00:00.000Z", { tags: ["Music/Rock", "Music/Jazz"] }),
+      video(B, "2026-10-02T00:00:00.000Z", { tags: ["Music", "Ambient"] }),
+      video(C, "2026-10-03T00:00:00.000Z", { tags: ["Musical", "music/Rock"] }),
+      video(D, "2026-10-04T00:00:00.000Z"),
+    ];
+    assert.deepEqual(
+      shelves(list).map((shelf) =>
+        shelf.kind === "group" ? [shelf.group, shelf.count, shelf.rows.map(({ tag, videos }) => [tag, videos.map((item) => item.videoId)])] : [shelf.tag],
+      ),
+      [
+        ["Ambient"],
+        [
+          "Music",
+          3,
+          [
+            ["Music", [B]],
+            ["Music/Jazz", [A]],
+            ["Music/Rock", [C, A]],
+          ],
+        ],
+        ["Musical"],
+        [null],
+      ],
+    );
+  });
+
+  test("a tag that is not a group stays a row, and a group with no video is not shown", () => {
+    assert.deepEqual(
+      shelves([video(A, "2026-10-01T00:00:00.000Z", { tags: ["Music"] })]).map((shelf) => shelf.kind),
+      ["row"],
+    );
+    assert.deepEqual(shelves([]), []);
+  });
+});
+
 describe("the videos to watch, as the Widget shows them", () => {
   test("how many are left to watch, and the most recently added of them", () => {
     const list = ["2026-10-01", "2026-10-05", "2026-10-03", "2026-10-02", "2026-10-04", "2026-10-06"].map((day, index) =>
@@ -260,10 +452,22 @@ describe("the videos to watch, as the Widget shows them", () => {
 
 describe("reading the settings", () => {
   test("the watched videos are hidden unless the User chose to show them", () => {
-    assert.deepEqual(readSettings(null), { hideWatched: true });
-    assert.deepEqual(readSettings({ hideWatched: "no" }), { hideWatched: true });
-    assert.deepEqual(readSettings({ hideWatched: false }), { hideWatched: false });
-    assert.deepEqual(readSettings({ hideWatched: true, other: 1 }), { hideWatched: true });
+    assert.deepEqual(readSettings(null), { hideWatched: true, collapsed: [], order: {}, sections: [] });
+    assert.deepEqual(readSettings({ hideWatched: "no" }), { hideWatched: true, collapsed: [], order: {}, sections: [] });
+    assert.deepEqual(readSettings({ hideWatched: false }), { hideWatched: false, collapsed: [], order: {}, sections: [] });
+    assert.deepEqual(readSettings({ hideWatched: true, other: 1 }), { hideWatched: true, collapsed: [], order: {}, sections: [] });
+    assert.deepEqual(readSettings({ collapsed: ["Music", 3, null, "Code"] }).collapsed, ["Music", "Code"]);
+    assert.deepEqual(readSettings({ collapsed: "Music" }).collapsed, []);
+  });
+
+  test("the order of the sections keeps the keys, and drops what is not one", () => {
+    assert.deepEqual(readSettings({ sections: ["music/", 3, ""] }).sections, ["music/", ""]);
+    assert.deepEqual(readSettings({ sections: "music/" }).sections, []);
+  });
+
+  test("the order of the rows keeps the lists of ids, and drops what is not one", () => {
+    assert.deepEqual(readSettings({ order: { music: [A, 3, B], "": [B], code: "x" } }).order, { music: [A, B], "": [B] });
+    assert.deepEqual(readSettings({ order: [A] }).order, {});
   });
 });
 

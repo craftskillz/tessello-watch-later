@@ -2,17 +2,20 @@
   import { tick } from "svelte";
   import { t } from "../lib/i18n.ts";
   import { droppedText } from "../lib/drop.ts";
-  import { add, load, markWatched, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
-  import { allTags, holdsVideo, rowsByTag, type Video, withTag } from "../lib/videos.ts";
-  import { pending } from "../lib/confirmation.svelte.ts";
+  import { add, load, markWatched, removeAll, setCollapsed, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
+  import { allTags, holdsVideo, sectionVideos, shelfKey, shelves, type Video, withTag } from "../lib/videos.ts";
+  import { ask, pending } from "../lib/confirmation.svelte.ts";
+  import { movesInView } from "../lib/moving.svelte.ts";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import DetailsDialog from "./DetailsDialog.svelte";
+  import Group from "./Group.svelte";
   import Row from "./Row.svelte";
   import TagInput from "./TagInput.svelte";
   import VideoCard from "./VideoCard.svelte";
 
   let url = $state("");
-  const rows = $derived(rowsByTag(settings.hideWatched ? videos.list.filter((video) => !video.watched) : videos.list));
+  const shown = $derived(shelves(settings.hideWatched ? videos.list.filter((video) => !video.watched) : videos.list, settings.order, settings.sections));
+  const isCollapsed = (group: string) => settings.collapsed.some((other) => other.toLowerCase() === group.toLowerCase());
   /** The tags put on the videos added next, kept until the View is closed. */
   let newTags = $state<string[]>([]);
   /** The video whose details are open; they close when it is deleted. */
@@ -79,6 +82,20 @@
     }
   }
 
+  /**
+   * Deletes every video of a section, watched or not, once the User confirms it, told how many go and how many leave
+   * other sections too.
+   */
+  async function deleteSection(name: string, section: { tag: string | null } | { group: string }) {
+    const { videos: found, elsewhere } = sectionVideos(videos.list, section);
+    if (!found.length) return;
+    const count = found.length;
+    const message = count === 1 ? t("delete_section_message_one", { name }) : t("delete_section_message", { name, count });
+    const also = !elsewhere ? "" : count === 1 ? t("delete_section_elsewhere_single") : t("delete_section_elsewhere", { count: elsewhere });
+    if (!(await ask(t("delete_section_title"), also ? `${message} ${also}` : message))) return;
+    removeAll(found.map((video) => video.videoId));
+  }
+
   /** Highlights the cards of videos a moment, and scrolls to the first. */
   async function show(videoIds: string[]) {
     highlighted = videoIds;
@@ -112,8 +129,12 @@
     if (addText(event.clipboardData?.getData("text/plain") ?? "")) event.preventDefault();
   }
 
-  /** Links and text may be dropped on the View; anything else, such as a file, is refused. */
-  const carriesText = (event: DragEvent) => !!event.dataTransfer?.types.some((type) => type === "text/uri-list" || type === "text/plain");
+  /**
+   * Links and text may be dropped on the View; anything else, such as a file, is refused. A card or a section moved in
+   * the View is left to the rows and groups (Row.svelte, Group.svelte).
+   */
+  const carriesText = (event: DragEvent) =>
+    !movesInView(event) && !!event.dataTransfer?.types.some((type) => type === "text/uri-list" || type === "text/plain");
 
   function dragEnter(event: DragEvent) {
     if (carriesText(event)) dragDepth++;
@@ -128,6 +149,7 @@
    * dropped in the note of an open dialog.
    */
   function dragOver(event: DragEvent) {
+    if (movesInView(event)) return;
     if (dialogOpen && carriesText(event) && (event.target as HTMLElement | null)?.closest("textarea")) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = dragging && carriesText(event) ? "copy" : "none";
@@ -136,6 +158,7 @@
   /** Text that is not a video, dropped in the field, is typed into it, as a paste is. */
   function drop(event: DragEvent) {
     dragDepth = 0;
+    if (movesInView(event)) return;
     const text = event.dataTransfer ? droppedText(event.dataTransfer) : "";
     const target = event.target as HTMLElement | null;
     if (dialogOpen) {
@@ -186,7 +209,7 @@
     {#if status.saveError}
       <p class="wl-banner" role="alert">{status.saveError}</p>
     {/if}
-    {#if rows.length}
+    {#if shown.length}
       {#snippet card(video: Video)}
         <VideoCard
           {video}
@@ -195,8 +218,14 @@
           onDetails={(video) => (detailsId = video.videoId)}
         />
       {/snippet}
-      {#each rows as row (row.tag ?? "")}
-        <Row name={row.tag ?? t("row_untagged")} videos={row.videos} {card} />
+      {#each shown as shelf (shelfKey(shelf))}
+        {#if shelf.kind === "group"}
+          {@const collapsed = isCollapsed(shelf.group)}
+          <Group group={shelf} {collapsed} onToggle={() => setCollapsed(shelf.group, !collapsed)} onDelete={deleteSection} {card} />
+        {:else}
+          {@const name = shelf.tag ?? t("row_untagged")}
+          <Row tag={shelf.tag} {name} videos={shelf.videos} onDelete={() => deleteSection(name, { tag: shelf.tag })} {card} />
+        {/if}
       {/each}
     {:else}
       <p class="wl-message">{videos.list.length ? t("all_watched") : t("empty")}</p>

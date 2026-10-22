@@ -30,13 +30,14 @@
   data-video-id={video.videoId}
   onclick={clickCard}
 >
-  <a class="wl-thumb" {href} target="_blank" rel="noopener" tabindex="-1">
-    <img src={thumbnailUrl(video.videoId)} alt={t("thumbnail", { title: video.title })} loading="lazy" width="320" height="180" />
+  <!-- Not draggable on their own: a drag moves the whole card (Row.svelte). -->
+  <a class="wl-thumb" {href} target="_blank" rel="noopener" tabindex="-1" draggable="false">
+    <img draggable="false" src={thumbnailUrl(video.videoId)} alt={t("thumbnail", { title: video.title })} loading="lazy" width="320" height="180" />
     {#if video.watched}
       <span class="wl-badge">{t("watched")}</span>
     {/if}
   </a>
-  <a class="wl-title" {href} target="_blank" rel="noopener">{video.title}</a>
+  <a class="wl-title" {href} target="_blank" rel="noopener" draggable="false">{video.title}</a>
   {#if video.channel}
     <p class="wl-channel">{video.channel}</p>
   {/if}

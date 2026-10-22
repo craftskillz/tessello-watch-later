@@ -74,3 +74,43 @@ body {
   color: var(--red);
   background: var(--red-soft);
 }
+
+/* The handle of a section of the View that the User drags to move it (Row.svelte, Group.svelte). */
+.wl-grip {
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+}
+
+/* Where a dragged section lands: above or below the section under the pointer, in the gap between them. */
+.wl-drop-above::before,
+.wl-drop-below::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.wl-drop-above::before {
+  top: -9.5px;
+}
+.wl-drop-below::after {
+  bottom: -9.5px;
+}
+
+/* The deletion of a whole section, out of sight until its header is pointed at or focused, but on a touch screen. */
+.wl-delete {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+@media (hover: hover) {
+  .wl-delete {
+    opacity: 0;
+  }
+  :hover > .wl-delete,
+  :focus-within > .wl-delete {
+    opacity: 1;
+  }
+}
