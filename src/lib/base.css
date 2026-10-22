@@ -1,0 +1,56 @@
+/* The Host's theme sets --bg, --panel, --ink, --muted, --accent and --line (lib/theme.ts); the values below are only
+   used until the handshake. */
+
+:root {
+  --bg: #ffffff;
+  --panel: #f6f7f9;
+  --ink: #1d2026;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --line: #e2e5ea;
+  --panel-soft: color-mix(in srgb, var(--ink) 4%, transparent);
+  --accent-strong: color-mix(in srgb, var(--accent) 80%, var(--ink));
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --red: #e11d48;
+  --red-soft: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+:root.dark {
+  --red: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.wl-btn {
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+}
+.wl-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.wl-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
