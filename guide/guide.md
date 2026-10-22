@@ -1,12 +1,14 @@
 # Watch Later
 
-**Keep the YouTube videos you want to watch later: paste a link, find it again.**
+**Keep the YouTube videos you want to watch later: paste or drop a link, find it again.**
 
 Every change is saved the moment you make it. There is no Save button.
 
 ## Adding a video
 
-Copy the link of a YouTube video, then paste it in the field at the top of the page and press **Enter**, or paste it anywhere on the page with **Ctrl+V** (**Cmd+V** on a Mac). Links to a video, a Short, a live stream or an embedded player are all recognized, and so is the moment a link starts at.
+Copy the link of a YouTube video, then paste it in the field at the top of the page and press **Enter**, or paste it anywhere on the page with **Ctrl+V** (**Cmd+V** on a Mac). You can also drag a link onto the page, from a browser tab, the address bar or another page, and drop it where it says **Drop to add**. Links to a video, a Short, a live stream or an embedded player are all recognized, and so is the moment a link starts at.
+
+Several links at once, one per line, are all added: the page then says how many were added, how many were already there and how many were not videos. A video is never added twice: if it is already in your list, even from another link or at another moment, the page shows its card instead.
 
 The video appears at once with its thumbnail, then with its title and its channel, read from YouTube. If YouTube cannot be reached, the link stands in for the title: click **Retry** to read it again.
 
@@ -18,6 +20,8 @@ Click the thumbnail or the title of a video to open it on YouTube, in a new tab.
 
 - **Your videos could not be read**: Tessello could not read what the Module saved. Nothing can be added until they are read, so that an empty list never replaces yours. Click **Try again**.
 - **Your last change could not be saved**: the change is still on screen, but it will be lost when you leave. If the message says the storage is full, the Module holds more than Tessello allows it.
+- **This video is already in your list**: the video you pasted or dropped is there already; its card is highlighted a moment.
+- **This is not a YouTube video**: what you pasted or dropped is not a link to a YouTube video, so nothing was added.
 - **A link instead of a title, with Retry**: YouTube could not be reached, or the video is private. The video is kept all the same; click **Retry** once you are back online.
 
 ## Your data

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { setLocale } from "../src/lib/i18n.ts";
-import { addVideo, newestFirst, readMetadata, readVideos, relativeTime, type Video } from "../src/lib/videos.ts";
+import { addVideo, addVideos, holdsVideo, newestFirst, readMetadata, readVideos, relativeTime, type Video } from "../src/lib/videos.ts";
 
 const A = "aaaaaaaaaaa";
 const B = "bbbbbbbbbbb";
@@ -40,6 +40,47 @@ describe("adding a video", () => {
     assert.equal(added, false);
     assert.equal(videoId, A);
     assert.deepEqual(videos, existing);
+  });
+});
+
+describe("adding what the User pastes or drops", () => {
+  const now = new Date("2026-10-22T10:00:00Z");
+  const C = "ccccccccccc";
+
+  test("each line that is a YouTube video is added; the others are ignored, and blank lines are not counted", () => {
+    const text = `https://youtu.be/${A}\n\n  not a video \r\nyoutube.com/shorts/${B}\nhttps://example.com\n`;
+    const result = addVideos([], text, now);
+    assert.deepEqual(
+      result.videos.map((item) => item.videoId),
+      [A, B],
+    );
+    assert.deepEqual(result.added, [A, B]);
+    assert.deepEqual(result.existing, []);
+    assert.equal(result.ignored, 2);
+  });
+
+  test("a video already there, or twice in the same text, is added once", () => {
+    const existing = [video(A, "2026-10-01T00:00:00.000Z")];
+    const result = addVideos(existing, `https://www.youtube.com/watch?v=${A}&t=30\nyoutu.be/${C}\nhttps://www.youtube.com/embed/${C}`, now);
+    assert.deepEqual(
+      result.videos.map((item) => item.videoId),
+      [A, C],
+    );
+    assert.deepEqual(result.added, [C]);
+    assert.deepEqual(result.existing, [A]);
+    assert.equal(result.ignored, 0);
+  });
+
+  test("text with no video adds nothing", () => {
+    assert.deepEqual(addVideos([], "  ", now), { videos: [], added: [], existing: [], ignored: 0 });
+    assert.deepEqual(addVideos([], "hello", now), { videos: [], added: [], existing: [], ignored: 1 });
+  });
+});
+
+describe("whether a text holds a video", () => {
+  test("it does when one of its lines is one", () => {
+    assert.equal(holdsVideo(`see this:\nyoutu.be/${A}`), true);
+    assert.equal(holdsVideo("see this:\nhttps://example.com"), false);
   });
 });
 

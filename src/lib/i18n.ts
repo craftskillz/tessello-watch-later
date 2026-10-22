@@ -7,8 +7,13 @@ const en = {
 
   add_label: "Paste a YouTube URL",
   row_all: "All",
-  empty: "No videos yet. Paste a YouTube URL above, or anywhere on this page.",
+  empty: "No videos yet. Paste a YouTube URL above or anywhere on this page, or drop a link here.",
   videos: "Videos",
+  drop_here: "Drop to add",
+
+  already_there: "This video is already in your list",
+  not_youtube: "This is not a YouTube video",
+  added_summary: "{added} added, {existing} already there, {ignored} ignored",
 
   fetching: "Reading the title…",
   meta_retry: "Retry",
@@ -34,8 +39,13 @@ const fr: Messages = {
 
   add_label: "Coller une URL YouTube",
   row_all: "Toutes",
-  empty: "Aucune vidéo pour l'instant. Collez une URL YouTube ci-dessus, ou n'importe où sur cette page.",
+  empty: "Aucune vidéo pour l'instant. Collez une URL YouTube ci-dessus ou n'importe où sur cette page, ou déposez un lien ici.",
   videos: "Vidéos",
+  drop_here: "Déposer pour ajouter",
+
+  already_there: "Cette vidéo est déjà dans votre liste",
+  not_youtube: "Ce n'est pas une vidéo YouTube",
+  added_summary: "Ajoutées : {added} · Déjà là : {existing} · Ignorées : {ignored}",
 
   fetching: "Lecture du titre…",
   meta_retry: "Réessayer",

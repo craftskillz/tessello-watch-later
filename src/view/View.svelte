@@ -1,35 +1,109 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { t } from "../lib/i18n.ts";
+  import { droppedText } from "../lib/drop.ts";
   import { add, load, status, videos } from "../lib/store.svelte.ts";
-  import { newestFirst } from "../lib/videos.ts";
+  import { holdsVideo, newestFirst } from "../lib/videos.ts";
   import VideoCard from "./VideoCard.svelte";
 
   let url = $state("");
   const shown = $derived(newestFirst(videos.list));
+  /** A brief message on what an addition did, and the videos shown because they were already there. */
+  let notice = $state("");
+  let highlighted = $state<string[]>([]);
+  /** The elements the drag is over: a drag over an element of the View enters it before it leaves the one under it. */
+  let dragDepth = $state(0);
+  const dragging = $derived(dragDepth > 0 && status.loaded);
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * Adds the videos of a text and tells the User what it did: a summary when it held several, else whether the video
+   * was already there or not a video at all. Returns true when the text held a video, added or not.
+   */
+  function addText(text: string): boolean {
+    const result = add(text);
+    if (!result) return false;
+    const { added, existing, ignored } = result;
+    const found = added.length + existing.length;
+    if (!found && ignored) void say(t("not_youtube"));
+    else if (found + ignored > 1) void say(t("added_summary", { added: added.length, existing: existing.length, ignored }));
+    else if (existing.length) void say(t("already_there"));
+    if (existing.length) void show(existing);
+    return found > 0;
+  }
+
+  /** Empties the message before saying it, so that a screen reader says it again when it is the same. */
+  async function say(message: string) {
+    notice = "";
+    await tick();
+    notice = message;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice = ""), 4000);
+  }
+
+  /** Highlights the cards of videos a moment, and scrolls to the first. */
+  async function show(videoIds: string[]) {
+    highlighted = videoIds;
+    clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => (highlighted = []), 2000);
+    await tick();
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document
+      .querySelector(`[data-video-id="${videoIds[0]}"]`)
+      ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "nearest", inline: "center" });
+  }
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
-    if (add(url)) url = "";
+    if (addText(url)) url = "";
   }
 
-  /** A paste in the field adds at once, when it is a YouTube URL; anything else is pasted as text. */
+  /** A paste in the field adds at once, when it holds a YouTube URL; anything else is pasted as text. */
   function pasteInField(event: ClipboardEvent) {
     const text = event.clipboardData?.getData("text/plain") ?? "";
-    if (add(text)) {
-      event.preventDefault();
-      url = "";
-    }
+    if (!status.loaded || !holdsVideo(text)) return;
+    event.preventDefault();
+    if (addText(text)) url = "";
   }
 
   /** Ctrl/Cmd+V anywhere in the View but in a field adds too. */
   function pasteInPage(event: ClipboardEvent) {
     const target = event.target as HTMLElement | null;
     if (target?.closest("input, textarea, [contenteditable]")) return;
-    if (add(event.clipboardData?.getData("text/plain") ?? "")) event.preventDefault();
+    if (addText(event.clipboardData?.getData("text/plain") ?? "")) event.preventDefault();
+  }
+
+  /** Links and text may be dropped on the View; anything else, such as a file, is refused. */
+  const carriesText = (event: DragEvent) => !!event.dataTransfer?.types.some((type) => type === "text/uri-list" || type === "text/plain");
+
+  function dragEnter(event: DragEvent) {
+    if (carriesText(event)) dragDepth++;
+  }
+
+  function dragLeave(event: DragEvent) {
+    if (carriesText(event)) dragDepth = Math.max(0, dragDepth - 1);
+  }
+
+  /** The browser's own drop, which would open what is dropped in place of the View, is always prevented. */
+  function dragOver(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = dragging && carriesText(event) ? "copy" : "none";
+  }
+
+  /** Text that is not a video, dropped in the field, is typed into it, as a paste is. */
+  function drop(event: DragEvent) {
+    dragDepth = 0;
+    const text = event.dataTransfer ? droppedText(event.dataTransfer) : "";
+    const inField = (event.target as HTMLElement | null)?.closest("input");
+    if (inField && !holdsVideo(text)) return;
+    event.preventDefault();
+    if (text.trim()) addText(text);
+    else if (status.loaded) void say(t("not_youtube"));
   }
 </script>
 
-<svelte:document onpaste={pasteInPage} />
+<svelte:document onpaste={pasteInPage} ondragenter={dragEnter} ondragover={dragOver} ondragleave={dragLeave} ondrop={drop} />
 
 <div class="wl-root">
   {#if status.loadError}
@@ -44,6 +118,7 @@
       <!-- Text, not url: a URL without https://, as YouTube links are often copied, would not pass the browser's check. -->
       <input type="text" inputmode="url" autocomplete="off" aria-label={t("add_label")} placeholder={t("add_label")} bind:value={url} onpaste={pasteInField} />
     </form>
+    <p class="wl-notice" role="status">{notice}</p>
     {#if status.saveError}
       <p class="wl-banner" role="alert">{status.saveError}</p>
     {/if}
@@ -52,13 +127,16 @@
         <h2>{t("row_all")}</h2>
         <ul class="wl-cards" aria-label={t("videos")}>
           {#each shown as video (video.videoId)}
-            <li><VideoCard {video} /></li>
+            <li><VideoCard {video} highlighted={highlighted.includes(video.videoId)} /></li>
           {/each}
         </ul>
       </section>
     {:else}
       <p class="wl-message">{t("empty")}</p>
     {/if}
+  {/if}
+  {#if dragging}
+    <div class="wl-dropzone" aria-hidden="true"><p>{t("drop_here")}</p></div>
   {/if}
 </div>
 
@@ -101,6 +179,37 @@
   .wl-cards li {
     flex: 0 0 auto;
     scroll-snap-align: start;
+  }
+  .wl-notice {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  /* Out of sight, but still in the page, so that a screen reader hears what is said in it. */
+  .wl-notice:empty {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  /* Not a target of the drag, so that moving over it does not leave the View. */
+  .wl-dropzone {
+    position: fixed;
+    inset: 8px;
+    display: grid;
+    place-items: center;
+    border: 2px dashed var(--accent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .wl-dropzone p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent-strong);
   }
   .wl-message {
     margin: 40px auto;

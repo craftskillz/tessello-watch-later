@@ -4,13 +4,13 @@
   import { relativeTime, type Video } from "../lib/videos.ts";
   import { thumbnailUrl, watchUrl } from "../lib/youtube.ts";
 
-  let { video }: { video: Video } = $props();
+  let { video, highlighted = false }: { video: Video; highlighted?: boolean } = $props();
 
   const href = $derived(watchUrl(video));
   const fetching = $derived(status.fetching.includes(video.videoId));
 </script>
 
-<article class="wl-card" aria-label={video.title}>
+<article class="wl-card" class:wl-highlighted={highlighted} aria-label={video.title} data-video-id={video.videoId}>
   <a class="wl-thumb" {href} target="_blank" rel="noopener" tabindex="-1">
     <img src={thumbnailUrl(video.videoId)} alt={t("thumbnail", { title: video.title })} loading="lazy" width="320" height="180" />
   </a>
@@ -36,6 +36,11 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+  /* The card of a video added again, shown a moment. */
+  .wl-highlighted .wl-thumb img {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
   }
   .wl-thumb img {
     display: block;

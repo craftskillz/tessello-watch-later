@@ -3,7 +3,7 @@
 // creation value. The model is the whole one of the spec, so that what later versions store is read back without loss.
 
 import { t } from "./i18n.ts";
-import { type ParsedVideo, VIDEO_ID, watchUrl } from "./youtube.ts";
+import { type ParsedVideo, parseYouTubeUrl, VIDEO_ID, watchUrl } from "./youtube.ts";
 
 export interface Video {
   /** The key of a video: there is never two with the same. */
@@ -41,6 +41,36 @@ export function addVideo(videos: readonly Video[], parsed: ParsedVideo, now: Dat
   };
   return { videos: [...videos, video], videoId: video.videoId, added: true };
 }
+
+/** What adding a text did: the ids of the videos added and of those already there, and how many lines were not videos. */
+export interface Addition {
+  added: string[];
+  existing: string[];
+  ignored: number;
+}
+
+/** Adds the video of each line of a pasted or dropped text that is a YouTube URL. Blank lines are not counted. */
+export function addVideos(videos: readonly Video[], text: string, now: Date): Addition & { videos: Video[] } {
+  const result = { videos: [...videos], added: [] as string[], existing: [] as string[], ignored: 0 };
+  for (const line of lines(text)) {
+    if (!line.trim()) continue;
+    const parsed = parseYouTubeUrl(line);
+    if (!parsed) {
+      result.ignored++;
+      continue;
+    }
+    const { videos: list, videoId, added } = addVideo(result.videos, parsed, now);
+    result.videos = list;
+    if (added) result.added.push(videoId);
+    else if (!result.added.includes(videoId) && !result.existing.includes(videoId)) result.existing.push(videoId);
+  }
+  return result;
+}
+
+/** Whether a line of a text is a YouTube video. */
+export const holdsVideo = (text: string) => lines(text).some((line) => parseYouTubeUrl(line));
+
+const lines = (text: string) => text.split(/\r?\n/);
 
 /** The title and channel in an answer of oEmbed; null when it has no title. */
 export function readMetadata(answer: unknown): { title: string; channel?: string } | null {

@@ -5,8 +5,8 @@
 import type { ConnectedModule } from "@tessello/sdk";
 import { t } from "./i18n.ts";
 import { reasonOf, type VideoStorage, videoStorage } from "./storage.ts";
-import { addVideo, readMetadata, type Video } from "./videos.ts";
-import { oembedUrl, parseYouTubeUrl } from "./youtube.ts";
+import { type Addition, addVideos, readMetadata, type Video } from "./videos.ts";
+import { oembedUrl } from "./youtube.ts";
 
 export const videos = $state<{ list: Video[] }>({ list: [] });
 
@@ -56,18 +56,18 @@ function save(): Promise<void> {
 }
 
 /**
- * Adds the video of a YouTube URL and saves it, then reads its title and channel. Returns false when the text is not
- * a YouTube video, or while the videos cannot be read.
+ * Adds the video of each line of a pasted or dropped text that is a YouTube URL and saves them, then reads their title
+ * and channel. Returns what was added, or null while the videos cannot be read.
  */
-export function add(text: string): boolean {
-  const parsed = parseYouTubeUrl(text);
-  if (!status.loaded || !parsed) return false;
-  const { videos: list, videoId, added } = addVideo(videos.list, parsed, new Date());
-  if (!added) return true;
-  videos.list = list;
-  void save();
-  void fetchMetadata(videoId);
-  return true;
+export function add(text: string): Addition | null {
+  if (!status.loaded) return null;
+  const { videos: list, ...result } = addVideos(videos.list, text, new Date());
+  if (result.added.length) {
+    videos.list = list;
+    void save();
+    for (const videoId of result.added) void fetchMetadata(videoId);
+  }
+  return result;
 }
 
 /** Reads the title and channel of a video from oEmbed. On failure, its URL stays its title, and the card offers to retry. */
