@@ -62,8 +62,9 @@
 </article>
 
 <style>
+  /* On a phone, a card leaves the next one peeking in, to show that the row scrolls. */
   .wl-card {
-    width: 240px;
+    width: min(240px, 72vw);
     display: flex;
     flex-direction: column;
     gap: 4px;

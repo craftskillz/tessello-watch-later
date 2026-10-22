@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { setLocale } from "../src/lib/i18n.ts";
 import {
+  addTag,
   addVideo,
   addVideos,
+  allTags,
   holdsVideo,
   NOTE_MAX,
   newestFirst,
@@ -11,7 +13,9 @@ import {
   readSettings,
   readVideos,
   relativeTime,
+  removeTag,
   removeVideo,
+  rowsByTag,
   setNote,
   setWatched,
   type Video,
@@ -91,6 +95,15 @@ describe("adding what the User pastes or drops", () => {
   });
 });
 
+describe("adding videos with the tags chosen for them", () => {
+  test("each video added takes the tags, as they were first written", () => {
+    const existing = [video(A, "2026-10-01T00:00:00.000Z", { tags: ["Svelte"] })];
+    const result = addVideos(existing, `youtu.be/${B}\nyoutu.be/${A}`, new Date("2026-10-22T10:00:00Z"), [" svelte ", "Talks", "talks", ""]);
+    assert.deepEqual(result.videos[1].tags, ["Svelte", "Talks"]);
+    assert.deepEqual(result.videos[0].tags, ["Svelte"], "a video already there keeps its tags");
+  });
+});
+
 describe("whether a text holds a video", () => {
   test("it does when one of its lines is one", () => {
     assert.equal(holdsVideo(`see this:\nyoutu.be/${A}`), true);
@@ -166,6 +179,63 @@ describe("deleting a video", () => {
   test("removes it, and only it", () => {
     const list = [video(A, "2026-10-01T00:00:00.000Z"), video(B, "2026-10-02T00:00:00.000Z")];
     assert.deepEqual(removeVideo(list, A), [list[1]]);
+  });
+});
+
+describe("the tags of a video", () => {
+  const list = [video(A, "2026-10-01T00:00:00.000Z", { tags: ["Svelte"] }), video(B, "2026-10-02T00:00:00.000Z")];
+
+  test("a tag is added without the spaces in excess", () => {
+    assert.deepEqual(addTag(list, B, "  machine   learning "), [list[0], { ...list[1], tags: ["machine learning"] }]);
+  });
+
+  test("a tag already used, whatever its case, keeps the case it was first written in", () => {
+    assert.deepEqual(addTag(list, B, "SVELTE")[1].tags, ["Svelte"]);
+  });
+
+  test("a blank tag, or one the video has already, adds nothing", () => {
+    assert.deepEqual(addTag(list, B, "   "), list);
+    assert.deepEqual(addTag(list, A, "svelte"), list);
+  });
+
+  test("a tag is removed whatever its case", () => {
+    assert.deepEqual(removeTag(list, A, "svelte"), [{ ...list[0], tags: [] }, list[1]]);
+  });
+
+  test("all the tags in use, in alphabetical order, once each", () => {
+    const tagged = [video(A, "2026-10-01T00:00:00.000Z", { tags: ["svelte", "CSS"] }), video(B, "2026-10-02T00:00:00.000Z", { tags: ["Svelte", "ai"] })];
+    assert.deepEqual(allTags(tagged), ["ai", "CSS", "svelte"]);
+  });
+});
+
+describe("the rows of the View", () => {
+  const C = "ccccccccccc";
+  const D = "ddddddddddd";
+
+  test("one row per tag in alphabetical order, then the videos without a tag; the newest first in each", () => {
+    const list = [
+      video(A, "2026-10-01T00:00:00.000Z", { tags: ["svelte", "CSS"] }),
+      video(B, "2026-10-03T00:00:00.000Z", { tags: ["Svelte"] }),
+      video(C, "2026-10-02T00:00:00.000Z"),
+      video(D, "2026-10-04T00:00:00.000Z", { tags: ["ai"] }),
+    ];
+    assert.deepEqual(
+      rowsByTag(list).map(({ tag, videos }) => [tag, videos.map((item) => item.videoId)]),
+      [
+        ["ai", [D]],
+        ["CSS", [A]],
+        ["svelte", [B, A]],
+        [null, [C]],
+      ],
+    );
+  });
+
+  test("a row with no video is not shown", () => {
+    assert.deepEqual(rowsByTag([]), []);
+    assert.deepEqual(
+      rowsByTag([video(A, "2026-10-01T00:00:00.000Z", { tags: ["x"] })]).map(({ tag }) => tag),
+      ["x"],
+    );
   });
 });
 

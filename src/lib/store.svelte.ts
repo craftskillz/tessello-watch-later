@@ -5,7 +5,18 @@
 import type { ConnectedModule } from "@tessello/sdk";
 import { t } from "./i18n.ts";
 import { reasonOf, type VideoStorage, videoStorage } from "./storage.ts";
-import { type Addition, addVideos, readMetadata, removeVideo, setNote, setWatched, type Settings, type Video } from "./videos.ts";
+import {
+  type Addition,
+  addTag,
+  addVideos,
+  readMetadata,
+  removeTag,
+  removeVideo,
+  setNote,
+  setWatched,
+  type Settings,
+  type Video,
+} from "./videos.ts";
 import { oembedUrl } from "./youtube.ts";
 
 export const videos = $state<{ list: Video[] }>({ list: [] });
@@ -70,12 +81,12 @@ function queue(write: () => Promise<void>): Promise<void> {
 }
 
 /**
- * Adds the video of each line of a pasted or dropped text that is a YouTube URL and saves them, then reads their title
- * and channel. Returns what was added, or null while the videos cannot be read.
+ * Adds the video of each line of a pasted or dropped text that is a YouTube URL, with `tags`, and saves them, then
+ * reads their title and channel. Returns what was added, or null while the videos cannot be read.
  */
-export function add(text: string): Addition | null {
+export function add(text: string, tags: readonly string[] = []): Addition | null {
   if (!status.loaded) return null;
-  const { videos: list, ...result } = addVideos(videos.list, text, new Date());
+  const { videos: list, ...result } = addVideos(videos.list, text, new Date(), tags);
   if (result.added.length) {
     videos.list = list;
     void save();
@@ -100,6 +111,18 @@ export function writeNote(videoId: string, note: string): boolean {
   videos.list = list;
   if (list.find((video) => video.videoId === videoId)?.note !== before) void save();
   return true;
+}
+
+export function tag(videoId: string, tag: string): void {
+  if (!status.loaded) return;
+  videos.list = addTag(videos.list, videoId, tag);
+  void save();
+}
+
+export function untag(videoId: string, tag: string): void {
+  if (!status.loaded) return;
+  videos.list = removeTag(videos.list, videoId, tag);
+  void save();
 }
 
 export function remove(videoId: string): void {

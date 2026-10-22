@@ -12,9 +12,17 @@ Several links at once, one per line, are all added: the page then says how many 
 
 The video appears at once with its thumbnail, then with its title and its channel, read from YouTube. If YouTube cannot be reached, the link stands in for the title: click **Retry** to read it again.
 
+## Tags and rows
+
+Tags sort your videos by theme. In the details of a video, type a tag in **Add a tag** and press **Enter**; the tags you already use are suggested as you type. Click the **×** of a tag to take it off. Tags ignore case and extra spaces: `music` and ` Music ` are the same tag, written as you first wrote it.
+
+To tag videos as you add them, choose tags in **Tags for new videos**, under the field: every video you add next gets them, until you close the page.
+
+The page shows one row per tag, in alphabetical order, then a **No tag** row for the videos without one. A video with two tags is in both rows. Each row says how many videos it holds and scrolls sideways: with a trackpad, with **Shift** and the mouse wheel, with a finger, or with the **‹ ›** buttons. The page itself scrolls from one tag to the next.
+
 ## Watching
 
-Click the thumbnail or the title of a video to open it on YouTube, in a new tab. The newest videos come first, and each card says when you added it.
+Click the thumbnail or the title of a video to open it on YouTube, in a new tab. In each row, the newest videos come first, and each card says when you added it.
 
 Once you have watched a video, click **Watched** on its card; click it again to put the video back among those to watch. **Hide watched**, at the top of the page, is on at first: a video you mark as watched then leaves the page, and **Undo**, in the message that follows, brings it back. Uncheck **Hide watched** to see every video, the watched ones dimmed and marked. The page remembers your choice.
 

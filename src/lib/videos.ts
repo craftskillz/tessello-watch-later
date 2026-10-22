@@ -25,10 +25,15 @@ export interface Video {
 }
 
 /**
- * Adds a video at the date `now`, unless one with the same id is already there. `videoId` is the video to show: the
- * one added, or the one that was there.
+ * Adds a video at the date `now`, with `tags`, unless one with the same id is already there. `videoId` is the video
+ * to show: the one added, or the one that was there.
  */
-export function addVideo(videos: readonly Video[], parsed: ParsedVideo, now: Date): { videos: Video[]; videoId: string; added: boolean } {
+export function addVideo(
+  videos: readonly Video[],
+  parsed: ParsedVideo,
+  now: Date,
+  tags: readonly string[] = [],
+): { videos: Video[]; videoId: string; added: boolean } {
   if (videos.some((video) => video.videoId === parsed.videoId)) return { videos: [...videos], videoId: parsed.videoId, added: false };
   const video: Video = {
     videoId: parsed.videoId,
@@ -36,7 +41,7 @@ export function addVideo(videos: readonly Video[], parsed: ParsedVideo, now: Dat
     title: watchUrl(parsed),
     addedAt: now.toISOString(),
     watched: false,
-    tags: [],
+    tags: tags.reduce<string[]>((kept, tag) => withTag(videos, kept, tag), []),
     metaStatus: "failed",
   };
   return { videos: [...videos, video], videoId: video.videoId, added: true };
@@ -49,8 +54,11 @@ export interface Addition {
   ignored: number;
 }
 
-/** Adds the video of each line of a pasted or dropped text that is a YouTube URL. Blank lines are not counted. */
-export function addVideos(videos: readonly Video[], text: string, now: Date): Addition & { videos: Video[] } {
+/**
+ * Adds the video of each line of a pasted or dropped text that is a YouTube URL, with `tags`. Blank lines are not
+ * counted.
+ */
+export function addVideos(videos: readonly Video[], text: string, now: Date, tags: readonly string[] = []): Addition & { videos: Video[] } {
   const result = { videos: [...videos], added: [] as string[], existing: [] as string[], ignored: 0 };
   for (const line of lines(text)) {
     if (!line.trim()) continue;
@@ -59,7 +67,7 @@ export function addVideos(videos: readonly Video[], text: string, now: Date): Ad
       result.ignored++;
       continue;
     }
-    const { videos: list, videoId, added } = addVideo(result.videos, parsed, now);
+    const { videos: list, videoId, added } = addVideo(result.videos, parsed, now, tags);
     result.videos = list;
     if (added) result.added.push(videoId);
     else if (!result.added.includes(videoId) && !result.existing.includes(videoId)) result.existing.push(videoId);
@@ -116,6 +124,53 @@ export function readSettings(stored: unknown): Settings {
   return { hideWatched: record(stored).hideWatched !== false };
 }
 
+/** A tag without the spaces in excess; null when it is blank. */
+export function normalizeTag(tag: string): string | null {
+  return tag.trim().replace(/\s+/g, " ") || null;
+}
+
+const sameTag = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** `tags` with `tag` added, as it was first written in `videos`, unless it is blank or already there. */
+function withTag(videos: readonly Video[], tags: string[], tag: string): string[] {
+  const normalized = normalizeTag(tag);
+  if (!normalized || tags.some((other) => sameTag(other, normalized))) return tags;
+  return [...tags, allTags(videos).find((other) => sameTag(other, normalized)) ?? normalized];
+}
+
+/** Adds a tag to a video, as it was first written, unless it is blank or the video has it. */
+export function addTag(videos: readonly Video[], videoId: string, tag: string): Video[] {
+  return videos.map((video) => (video.videoId === videoId ? { ...video, tags: withTag(videos, video.tags, tag) } : video));
+}
+
+/** Removes a tag from a video, whatever its case. */
+export function removeTag(videos: readonly Video[], videoId: string, tag: string): Video[] {
+  return videos.map((video) => (video.videoId === videoId ? { ...video, tags: video.tags.filter((other) => !sameTag(other, tag)) } : video));
+}
+
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
+
+/** The tags in use, in alphabetical order, each as it was first written. */
+export function allTags(videos: readonly Video[]): string[] {
+  const tags: string[] = [];
+  for (const video of videos) for (const tag of video.tags) if (!tags.some((other) => sameTag(other, tag))) tags.push(tag);
+  return tags.sort(byName);
+}
+
+/** A row of the View: the videos with a tag, or without any when `tag` is null. */
+export interface Row {
+  tag: string | null;
+  videos: Video[];
+}
+
+/** One row per tag, in alphabetical order, then the videos without a tag; the newest first in each, and no empty row. */
+export function rowsByTag(videos: readonly Video[]): Row[] {
+  const newest = newestFirst(videos);
+  const rows: Row[] = allTags(videos).map((tag) => ({ tag, videos: newest.filter((video) => video.tags.some((other) => sameTag(other, tag))) }));
+  const untagged = newest.filter((video) => !video.tags.length);
+  return untagged.length ? [...rows, { tag: null, videos: untagged }] : rows;
+}
+
 /** The most recently added first. */
 export function newestFirst(videos: readonly Video[]): Video[] {
   return [...videos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
@@ -156,11 +211,7 @@ function readVideo(stored: unknown): Video | null {
 
 function readTags(stored: unknown): string[] {
   if (!Array.isArray(stored)) return [];
-  const tags: string[] = [];
-  for (const tag of stored) {
-    if (typeof tag === "string" && tag.trim() && !tags.some((other) => other.toLowerCase() === tag.trim().toLowerCase())) tags.push(tag.trim());
-  }
-  return tags;
+  return stored.reduce<string[]>((tags, tag) => (typeof tag === "string" ? withTag([], tags, tag) : tags), []);
 }
 
 const record = (value: unknown): Record<string, unknown> => (value && typeof value === "object" ? (value as Record<string, unknown>) : {});

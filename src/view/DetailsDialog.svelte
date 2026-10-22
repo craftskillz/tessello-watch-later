@@ -2,10 +2,11 @@
   // The details of a video: its title, channel, dates and status, its note, and its deletion.
   import { ask } from "../lib/confirmation.svelte.ts";
   import { t } from "../lib/i18n.ts";
-  import { remove, writeNote } from "../lib/store.svelte.ts";
-  import { NOTE_MAX, type Video } from "../lib/videos.ts";
+  import { remove, tag, untag, videos, writeNote } from "../lib/store.svelte.ts";
+  import { allTags, NOTE_MAX, type Video } from "../lib/videos.ts";
   import { watchUrl } from "../lib/youtube.ts";
   import Modal from "./Modal.svelte";
+  import TagInput from "./TagInput.svelte";
 
   let { video, onToggleWatched, onClose }: { video: Video; onToggleWatched: (video: Video) => void; onClose: () => void } = $props();
 
@@ -45,6 +46,16 @@
         {t("to_watch")}
       {/if}
       <button type="button" class="wl-btn" onclick={() => onToggleWatched(video)}>{video.watched ? t("mark_to_watch") : t("mark_watched")}</button>
+    </dd>
+    <dt>{t("tags")}</dt>
+    <dd>
+      <TagInput
+        label={t("add_tag")}
+        tags={video.tags}
+        suggestions={allTags(videos.list)}
+        onAdd={(name) => tag(video.videoId, name)}
+        onRemove={(name) => untag(video.videoId, name)}
+      />
     </dd>
   </dl>
   <label class="wl-note">

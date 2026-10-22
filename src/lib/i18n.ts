@@ -6,9 +6,7 @@ const en = {
   load_retry: "Try again",
 
   add_label: "Paste a YouTube URL",
-  row_all: "All",
   empty: "No videos yet. Paste a YouTube URL above or anywhere on this page, or drop a link here.",
-  videos: "Videos",
   drop_here: "Drop to add",
 
   already_there: "This video is already in your list",
@@ -43,6 +41,16 @@ const en = {
   delete_title: "Delete this video?",
   delete_message: "“{title}” will be removed from your list.",
 
+  tags: "Tags",
+  add_tag: "Add a tag",
+  remove_tag: "Remove the tag {tag}",
+  tags_for_new: "Tags for new videos",
+  row_untagged: "No tag",
+  row_count: "{count} videos",
+  row_count_one: "1 video",
+  scroll_back: "Scroll {row} back",
+  scroll_forward: "Scroll {row} forward",
+
   added_now: "just now",
   added_minutes: "{count} min ago",
   added_hours: "{count} h ago",
@@ -61,9 +69,7 @@ const fr: Messages = {
   load_retry: "Réessayer",
 
   add_label: "Coller une URL YouTube",
-  row_all: "Toutes",
   empty: "Aucune vidéo pour l'instant. Collez une URL YouTube ci-dessus ou n'importe où sur cette page, ou déposez un lien ici.",
-  videos: "Vidéos",
   drop_here: "Déposer pour ajouter",
 
   already_there: "Cette vidéo est déjà dans votre liste",
@@ -97,6 +103,16 @@ const fr: Messages = {
   delete: "Supprimer",
   delete_title: "Supprimer cette vidéo ?",
   delete_message: "« {title} » sera retirée de votre liste.",
+
+  tags: "Tags",
+  add_tag: "Ajouter un tag",
+  remove_tag: "Retirer le tag {tag}",
+  tags_for_new: "Tags des nouvelles vidéos",
+  row_untagged: "Sans tag",
+  row_count: "{count} vidéos",
+  row_count_one: "1 vidéo",
+  scroll_back: "Faire défiler {row} vers l'arrière",
+  scroll_forward: "Faire défiler {row} vers l'avant",
 
   added_now: "à l'instant",
   added_minutes: "il y a {count} min",

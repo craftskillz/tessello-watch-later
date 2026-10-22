@@ -3,14 +3,18 @@
   import { t } from "../lib/i18n.ts";
   import { droppedText } from "../lib/drop.ts";
   import { add, load, markWatched, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
-  import { holdsVideo, newestFirst, type Video } from "../lib/videos.ts";
+  import { allTags, holdsVideo, normalizeTag, rowsByTag, type Video } from "../lib/videos.ts";
   import { pending } from "../lib/confirmation.svelte.ts";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import DetailsDialog from "./DetailsDialog.svelte";
+  import Row from "./Row.svelte";
+  import TagInput from "./TagInput.svelte";
   import VideoCard from "./VideoCard.svelte";
 
   let url = $state("");
-  const shown = $derived(newestFirst(settings.hideWatched ? videos.list.filter((video) => !video.watched) : videos.list));
+  const rows = $derived(rowsByTag(settings.hideWatched ? videos.list.filter((video) => !video.watched) : videos.list));
+  /** The tags put on the videos added next, kept until the View is closed. */
+  let newTags = $state<string[]>([]);
   /** The video whose details are open; they close when it is deleted. */
   let detailsId = $state<string | null>(null);
   const details = $derived(videos.list.find((video) => video.videoId === detailsId));
@@ -34,7 +38,7 @@
    * was already there or not a video at all. Returns true when the text held a video, added or not.
    */
   function addText(text: string): boolean {
-    const result = add(text);
+    const result = add(text, newTags);
     if (!result) return false;
     const { added, existing, ignored } = result;
     const found = added.length + existing.length;
@@ -60,6 +64,13 @@
       },
       undoIt ? 8000 : 4000,
     );
+  }
+
+  /** Chooses a tag for the videos added next, as it was first written if it is in use. */
+  function chooseTag(tag: string) {
+    const normalized = normalizeTag(tag);
+    if (!normalized || newTags.some((other) => other.toLowerCase() === normalized.toLowerCase())) return;
+    newTags.push(allTags(videos.list).find((other) => other.toLowerCase() === normalized.toLowerCase()) ?? normalized);
   }
 
   /** Marks a video as watched, or as to watch. A video it hides can be brought back from the message. */
@@ -160,6 +171,15 @@
       <!-- Text, not url: a URL without https://, as YouTube links are often copied, would not pass the browser's check. -->
       <input type="text" inputmode="url" autocomplete="off" aria-label={t("add_label")} placeholder={t("add_label")} bind:value={url} onpaste={pasteInField} />
     </form>
+    <div class="wl-new-tags">
+      <TagInput
+        label={t("tags_for_new")}
+        tags={newTags}
+        suggestions={allTags(videos.list)}
+        onAdd={chooseTag}
+        onRemove={(tag) => (newTags = newTags.filter((other) => other !== tag))}
+      />
+    </div>
     <label class="wl-switch">
       <input type="checkbox" checked={settings.hideWatched} onchange={(event) => setHideWatched(event.currentTarget.checked)} />
       {t("hide_watched")}
@@ -173,22 +193,18 @@
     {#if status.saveError}
       <p class="wl-banner" role="alert">{status.saveError}</p>
     {/if}
-    {#if shown.length}
-      <section class="wl-row" aria-label={t("row_all")}>
-        <h2>{t("row_all")}</h2>
-        <ul class="wl-cards" aria-label={t("videos")}>
-          {#each shown as video (video.videoId)}
-            <li>
-              <VideoCard
-                {video}
-                highlighted={highlighted.includes(video.videoId)}
-                onToggleWatched={toggleWatched}
-                onDetails={(video) => (detailsId = video.videoId)}
-              />
-            </li>
-          {/each}
-        </ul>
-      </section>
+    {#if rows.length}
+      {#snippet card(video: Video)}
+        <VideoCard
+          {video}
+          highlighted={highlighted.includes(video.videoId)}
+          onToggleWatched={toggleWatched}
+          onDetails={(video) => (detailsId = video.videoId)}
+        />
+      {/snippet}
+      {#each rows as row (row.tag ?? "")}
+        <Row name={row.tag ?? t("row_untagged")} videos={row.videos} {card} />
+      {/each}
     {:else}
       <p class="wl-message">{videos.list.length ? t("all_watched") : t("empty")}</p>
     {/if}
@@ -227,22 +243,8 @@
     outline: 2px solid var(--accent);
     outline-offset: -1px;
   }
-  .wl-row h2 {
-    margin: 0 0 8px;
-    font-size: 16px;
-  }
-  .wl-cards {
-    list-style: none;
-    margin: 0;
-    padding: 0 0 8px;
-    display: flex;
-    gap: 12px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-  }
-  .wl-cards li {
-    flex: 0 0 auto;
-    scroll-snap-align: start;
+  .wl-new-tags {
+    margin-top: -8px;
   }
   .wl-switch {
     align-self: flex-start;
