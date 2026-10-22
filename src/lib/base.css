@@ -54,3 +54,23 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+.wl-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.wl-btn--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: #fff;
+}
+.wl-btn--danger,
+.wl-btn--danger:hover:not(:disabled) {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.wl-btn--danger-outline:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-soft);
+}

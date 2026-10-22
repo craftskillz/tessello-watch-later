@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { setLocale } from "../src/lib/i18n.ts";
-import { addVideo, addVideos, holdsVideo, newestFirst, readMetadata, readVideos, relativeTime, type Video } from "../src/lib/videos.ts";
+import {
+  addVideo,
+  addVideos,
+  holdsVideo,
+  NOTE_MAX,
+  newestFirst,
+  readMetadata,
+  readSettings,
+  readVideos,
+  relativeTime,
+  removeVideo,
+  setNote,
+  setWatched,
+  type Video,
+} from "../src/lib/videos.ts";
 
 const A = "aaaaaaaaaaa";
 const B = "bbbbbbbbbbb";
@@ -111,6 +125,56 @@ describe("the list as the View shows it", () => {
       newestFirst(list).map((item) => item.videoId),
       [B, A],
     );
+  });
+});
+
+describe("marking a video as watched or to watch", () => {
+  const list = [video(A, "2026-10-01T00:00:00.000Z"), video(B, "2026-10-02T00:00:00.000Z")];
+
+  test("a video marked as watched records when", () => {
+    const watched = setWatched(list, A, true, new Date("2026-10-22T10:00:00Z"));
+    assert.deepEqual(watched[0], { ...list[0], watched: true, watchedAt: "2026-10-22T10:00:00.000Z" });
+    assert.deepEqual(watched[1], list[1]);
+  });
+
+  test("a video marked as to watch again forgets when it was watched", () => {
+    const watched = setWatched(list, A, true, new Date("2026-10-22T10:00:00Z"));
+    assert.deepEqual(setWatched(watched, A, false, new Date("2026-10-23T10:00:00Z")), list);
+  });
+});
+
+describe("the note of a video", () => {
+  const list = [video(A, "2026-10-01T00:00:00.000Z")];
+
+  test("is kept without the spaces around it", () => {
+    assert.deepEqual(setNote(list, A, "  for the talk on Friday \n"), [{ ...list[0], note: "for the talk on Friday" }]);
+  });
+
+  test("a blank note is no note", () => {
+    const noted = setNote(list, A, "something") ?? [];
+    assert.deepEqual(setNote(noted, A, "   "), list);
+  });
+
+  test("a note longer than the limit is refused", () => {
+    assert.equal(NOTE_MAX, 2000);
+    assert.equal(setNote(list, A, "x".repeat(2001)), null);
+    assert.equal(setNote(list, A, "x".repeat(2000))?.[0].note?.length, 2000);
+  });
+});
+
+describe("deleting a video", () => {
+  test("removes it, and only it", () => {
+    const list = [video(A, "2026-10-01T00:00:00.000Z"), video(B, "2026-10-02T00:00:00.000Z")];
+    assert.deepEqual(removeVideo(list, A), [list[1]]);
+  });
+});
+
+describe("reading the settings", () => {
+  test("the watched videos are hidden unless the User chose to show them", () => {
+    assert.deepEqual(readSettings(null), { hideWatched: true });
+    assert.deepEqual(readSettings({ hideWatched: "no" }), { hideWatched: true });
+    assert.deepEqual(readSettings({ hideWatched: false }), { hideWatched: false });
+    assert.deepEqual(readSettings({ hideWatched: true, other: 1 }), { hideWatched: true });
   });
 });
 

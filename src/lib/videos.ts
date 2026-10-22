@@ -81,6 +81,41 @@ export function readMetadata(answer: unknown): { title: string; channel?: string
   return channel ? { title, channel } : { title };
 }
 
+/** Marks a video as watched at the date `now`, or as to watch, which forgets when it was watched. */
+export function setWatched(videos: readonly Video[], videoId: string, watched: boolean, now: Date): Video[] {
+  return videos.map((video) => {
+    if (video.videoId !== videoId) return video;
+    const { watchedAt, ...rest } = video;
+    return watched ? { ...rest, watched, watchedAt: now.toISOString() } : { ...rest, watched };
+  });
+}
+
+/** The longest note the View accepts. */
+export const NOTE_MAX = 2000;
+
+/** Writes the note of a video, without the spaces around it; a blank note is none. Null when the note is too long. */
+export function setNote(videos: readonly Video[], videoId: string, note: string): Video[] | null {
+  const trimmed = note.trim();
+  if (trimmed.length > NOTE_MAX) return null;
+  return videos.map((video) => {
+    if (video.videoId !== videoId) return video;
+    const { note: _, ...rest } = video;
+    return trimmed ? { ...rest, note: trimmed } : rest;
+  });
+}
+
+export const removeVideo = (videos: readonly Video[], videoId: string) => videos.filter((video) => video.videoId !== videoId);
+
+export interface Settings {
+  /** Whether the watched videos are left out of the View. */
+  hideWatched: boolean;
+}
+
+/** The settings under the key `settings`; what cannot be read takes its default. */
+export function readSettings(stored: unknown): Settings {
+  return { hideWatched: record(stored).hideWatched !== false };
+}
+
 /** The most recently added first. */
 export function newestFirst(videos: readonly Video[]): Video[] {
   return [...videos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));

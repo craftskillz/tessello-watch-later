@@ -16,6 +16,12 @@ The video appears at once with its thumbnail, then with its title and its channe
 
 Click the thumbnail or the title of a video to open it on YouTube, in a new tab. The newest videos come first, and each card says when you added it.
 
+Once you have watched a video, click **Watched** on its card; click it again to put the video back among those to watch. **Hide watched**, at the top of the page, is on at first: a video you mark as watched then leaves the page, and **Undo**, in the message that follows, brings it back. Uncheck **Hide watched** to see every video, the watched ones dimmed and marked. The page remembers your choice.
+
+## Notes and deleting
+
+Click **Details** on a card, or anywhere on the card but its title and thumbnail, to see its channel, when you added it and whether you watched it. Write in **Note** why you kept the video, up to 2,000 characters: the note is saved when you leave the field or close the details, and a ✎ on the card tells you it has one. **Delete** removes the video from your list once you confirm it.
+
 ## When something goes wrong
 
 - **Your videos could not be read**: Tessello could not read what the Module saved. Nothing can be added until they are read, so that an empty list never replaces yours. Click **Try again**.

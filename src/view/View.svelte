@@ -2,18 +2,30 @@
   import { tick } from "svelte";
   import { t } from "../lib/i18n.ts";
   import { droppedText } from "../lib/drop.ts";
-  import { add, load, status, videos } from "../lib/store.svelte.ts";
-  import { holdsVideo, newestFirst } from "../lib/videos.ts";
+  import { add, load, markWatched, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
+  import { holdsVideo, newestFirst, type Video } from "../lib/videos.ts";
+  import { pending } from "../lib/confirmation.svelte.ts";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
+  import DetailsDialog from "./DetailsDialog.svelte";
   import VideoCard from "./VideoCard.svelte";
 
   let url = $state("");
-  const shown = $derived(newestFirst(videos.list));
-  /** A brief message on what an addition did, and the videos shown because they were already there. */
+  const shown = $derived(newestFirst(settings.hideWatched ? videos.list.filter((video) => !video.watched) : videos.list));
+  /** The video whose details are open; they close when it is deleted. */
+  let detailsId = $state<string | null>(null);
+  const details = $derived(videos.list.find((video) => video.videoId === detailsId));
+  /**
+   * A brief message on what a change did, with a way to undo it when it hid a video, and the videos shown because
+   * they were already there.
+   */
   let notice = $state("");
+  let undo = $state<(() => void) | null>(null);
   let highlighted = $state<string[]>([]);
   /** The elements the drag is over: a drag over an element of the View enters it before it leaves the one under it. */
   let dragDepth = $state(0);
-  const dragging = $derived(dragDepth > 0 && status.loaded);
+  /** While a dialog is open, what is dropped is not added: a link dropped in the note is typed into it. */
+  const dialogOpen = $derived(!!details || !!pending.question);
+  const dragging = $derived(dragDepth > 0 && status.loaded && !dialogOpen);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
   let highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -34,12 +46,33 @@
   }
 
   /** Empties the message before saying it, so that a screen reader says it again when it is the same. */
-  async function say(message: string) {
+  async function say(message: string, undoIt: (() => void) | null = null) {
     notice = "";
+    undo = null;
     await tick();
     notice = message;
+    undo = undoIt;
     clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => (notice = ""), 4000);
+    noticeTimer = setTimeout(
+      () => {
+        notice = "";
+        undo = null;
+      },
+      undoIt ? 8000 : 4000,
+    );
+  }
+
+  /** Marks a video as watched, or as to watch. A video it hides can be brought back from the message. */
+  function toggleWatched(video: Video) {
+    const watched = !video.watched;
+    markWatched(video.videoId, watched);
+    if (watched && settings.hideWatched) {
+      void say(t("marked_watched"), () => {
+        markWatched(video.videoId, false);
+        notice = "";
+        undo = null;
+      });
+    }
   }
 
   /** Highlights the cards of videos a moment, and scrolls to the first. */
@@ -67,10 +100,11 @@
     if (addText(text)) url = "";
   }
 
-  /** Ctrl/Cmd+V anywhere in the View but in a field adds too. */
+  /** Ctrl/Cmd+V anywhere in the View but in a field, or in a dialog, adds too. */
   function pasteInPage(event: ClipboardEvent) {
     const target = event.target as HTMLElement | null;
-    if (target?.closest("input, textarea, [contenteditable]")) return;
+    if (dialogOpen) return;
+    if (target?.closest("input[type=text], textarea, [contenteditable]")) return;
     if (addText(event.clipboardData?.getData("text/plain") ?? "")) event.preventDefault();
   }
 
@@ -85,8 +119,12 @@
     if (carriesText(event)) dragDepth = Math.max(0, dragDepth - 1);
   }
 
-  /** The browser's own drop, which would open what is dropped in place of the View, is always prevented. */
+  /**
+   * The browser's own drop, which would open what is dropped in place of the View, is always prevented, but for text
+   * dropped in the note of an open dialog.
+   */
   function dragOver(event: DragEvent) {
+    if (dialogOpen && carriesText(event) && (event.target as HTMLElement | null)?.closest("textarea")) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = dragging && carriesText(event) ? "copy" : "none";
   }
@@ -95,8 +133,12 @@
   function drop(event: DragEvent) {
     dragDepth = 0;
     const text = event.dataTransfer ? droppedText(event.dataTransfer) : "";
-    const inField = (event.target as HTMLElement | null)?.closest("input");
-    if (inField && !holdsVideo(text)) return;
+    const target = event.target as HTMLElement | null;
+    if (dialogOpen) {
+      if (!target?.closest("textarea")) event.preventDefault();
+      return;
+    }
+    if (target?.closest("input[type=text]") && !holdsVideo(text)) return;
     event.preventDefault();
     if (text.trim()) addText(text);
     else if (status.loaded) void say(t("not_youtube"));
@@ -118,7 +160,16 @@
       <!-- Text, not url: a URL without https://, as YouTube links are often copied, would not pass the browser's check. -->
       <input type="text" inputmode="url" autocomplete="off" aria-label={t("add_label")} placeholder={t("add_label")} bind:value={url} onpaste={pasteInField} />
     </form>
-    <p class="wl-notice" role="status">{notice}</p>
+    <label class="wl-switch">
+      <input type="checkbox" checked={settings.hideWatched} onchange={(event) => setHideWatched(event.currentTarget.checked)} />
+      {t("hide_watched")}
+    </label>
+    <p class="wl-notice" role="status">
+      {notice}
+      {#if notice && undo}
+        · <button type="button" class="wl-link" onclick={undo}>{t("undo")}</button>
+      {/if}
+    </p>
     {#if status.saveError}
       <p class="wl-banner" role="alert">{status.saveError}</p>
     {/if}
@@ -127,14 +178,27 @@
         <h2>{t("row_all")}</h2>
         <ul class="wl-cards" aria-label={t("videos")}>
           {#each shown as video (video.videoId)}
-            <li><VideoCard {video} highlighted={highlighted.includes(video.videoId)} /></li>
+            <li>
+              <VideoCard
+                {video}
+                highlighted={highlighted.includes(video.videoId)}
+                onToggleWatched={toggleWatched}
+                onDetails={(video) => (detailsId = video.videoId)}
+              />
+            </li>
           {/each}
         </ul>
       </section>
     {:else}
-      <p class="wl-message">{t("empty")}</p>
+      <p class="wl-message">{videos.list.length ? t("all_watched") : t("empty")}</p>
     {/if}
   {/if}
+  {#if details}
+    {#key details.videoId}
+      <DetailsDialog video={details} onToggleWatched={toggleWatched} onClose={() => (detailsId = null)} />
+    {/key}
+  {/if}
+  <ConfirmDialog />
   {#if dragging}
     <div class="wl-dropzone" aria-hidden="true"><p>{t("drop_here")}</p></div>
   {/if}
@@ -179,6 +243,26 @@
   .wl-cards li {
     flex: 0 0 auto;
     scroll-snap-align: start;
+  }
+  .wl-switch {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .wl-switch input {
+    accent-color: var(--accent);
+  }
+  .wl-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-strong);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
   .wl-notice {
     margin: 0;
