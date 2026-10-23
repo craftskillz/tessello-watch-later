@@ -22,10 +22,12 @@ import {
   sectionVideos,
   rowsByTag,
   setNote,
+  setScore,
   setWatched,
   shelfKey,
   shelves,
   toWatch,
+  watchVideo,
   type Video,
 } from "../src/lib/videos.ts";
 
@@ -161,6 +163,57 @@ describe("marking a video as watched or to watch", () => {
   test("a video marked as to watch again forgets when it was watched", () => {
     const watched = setWatched(list, A, true, new Date("2026-10-22T10:00:00Z"));
     assert.deepEqual(setWatched(watched, A, false, new Date("2026-10-23T10:00:00Z")), list);
+  });
+});
+
+describe("scoring a watched video", () => {
+  const now = new Date("2026-10-23T10:00:00Z");
+  const original = video(A, "2026-10-01T00:00:00.000Z", { note: "Before watching" });
+
+  test("marking watched saves the score, trimmed note and date together without changing other videos", () => {
+    const other = video(B, original.addedAt);
+    const list = [original, other];
+    const watched = watchVideo(list, A, 4, "  Useful talk\n", now)!;
+    assert.deepEqual(watched, [{ ...original, watched: true, watchedAt: now.toISOString(), score: 4, note: "Useful talk" }, other]);
+    assert.deepEqual(list, [original, other], "the original list is untouched");
+    assert.deepEqual(setWatched(watched, A, false, now)[0], { ...original, note: "Useful talk" }, "returning to watch forgets score and watched date, and keeps the note");
+  });
+
+  test("zero and five are valid scores, and an empty note removes the old note", () => {
+    for (const score of [0, 5]) {
+      const watched = watchVideo([original], A, score, " \n ", now)!;
+      assert.equal(watched[0].score, score);
+      assert.equal("note" in watched[0], false);
+    }
+  });
+
+  test("invalid scores and overlong notes cannot partially mark a video watched", () => {
+    for (const score of [-1, 6, 2.5, NaN, Infinity]) assert.equal(watchVideo([original], A, score, "New", now), null);
+    assert.equal(watchVideo([original], A, 4, "x".repeat(NOTE_MAX + 1), now), null);
+    assert.ok(watchVideo([original], A, 4, "x".repeat(NOTE_MAX), now));
+    assert.equal(original.watched, false);
+    assert.equal(original.note, "Before watching");
+  });
+
+  test("a watched video can receive or change its score without changing its note or watched date", () => {
+    const legacy = { ...original, watched: true, watchedAt: now.toISOString() };
+    const rated = setScore([legacy], A, 5)!;
+    assert.deepEqual(rated, [{ ...legacy, score: 5 }]);
+    assert.deepEqual(setScore(rated, A, 0), [{ ...legacy, score: 0 }]);
+    assert.equal(setScore([original], A, 4), null, "a video still to watch has no score");
+    assert.equal(setScore(rated, A, 6), null);
+  });
+
+  test("storage keeps scores 0 through 5 only on watched videos, and still reads older videos", () => {
+    for (const score of [0, 1, 2, 3, 4, 5]) {
+      assert.equal(readVideos([{ ...original, watched: true, score }])[0].score, score);
+      assert.equal("score" in readVideos([{ ...original, score }])[0], false);
+    }
+    for (const score of [-1, 6, 2.5, "4", null, NaN, Infinity, undefined]) {
+      const [read] = readVideos([{ ...original, watched: true, score }]);
+      assert.equal(read.watched, true);
+      assert.equal("score" in read, false);
+    }
   });
 });
 

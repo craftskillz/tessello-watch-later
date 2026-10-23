@@ -38,6 +38,9 @@
     {/if}
   </a>
   <a class="wl-title" {href} target="_blank" rel="noopener" draggable="false">{video.title}</a>
+  {#if video.watched && video.score !== undefined}
+    <span class="wl-score" role="img" aria-label={t("score_label", { score: video.score })}>{"★".repeat(video.score)}{"☆".repeat(5 - video.score)}</span>
+  {/if}
   {#if video.channel}
     <p class="wl-channel">{video.channel}</p>
   {/if}
@@ -107,6 +110,10 @@
   }
   .wl-note-icon {
     cursor: help;
+  }
+  .wl-score {
+    color: var(--accent-strong);
+    letter-spacing: 2px;
   }
   /* The card of a video added again, shown a moment. */
   .wl-highlighted .wl-thumb img {

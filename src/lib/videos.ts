@@ -17,6 +17,8 @@ export interface Video {
   addedAt: string;
   watched: boolean;
   watchedAt?: string;
+  /** An integer from 0 to 5, only for a watched video; older watched videos may have none. */
+  score?: number;
   note?: string;
   /** Without duplicates, compared regardless of case. */
   tags: string[];
@@ -89,11 +91,11 @@ export function readMetadata(answer: unknown): { title: string; channel?: string
   return channel ? { title, channel } : { title };
 }
 
-/** Marks a video as watched at the date `now`, or as to watch, which forgets when it was watched. */
+/** Marks a video as watched at the date `now`, or as to watch, which forgets its score and when it was watched. */
 export function setWatched(videos: readonly Video[], videoId: string, watched: boolean, now: Date): Video[] {
   return videos.map((video) => {
     if (video.videoId !== videoId) return video;
-    const { watchedAt, ...rest } = video;
+    const { watchedAt, score, ...rest } = video;
     return watched ? { ...rest, watched, watchedAt: now.toISOString() } : { ...rest, watched };
   });
 }
@@ -110,6 +112,22 @@ export function setNote(videos: readonly Video[], videoId: string, note: string)
     const { note: _, ...rest } = video;
     return trimmed ? { ...rest, note: trimmed } : rest;
   });
+}
+
+/** A score is a number, never a numeric string, and includes zero. */
+const validScore = (score: unknown): score is number => typeof score === "number" && Number.isInteger(score) && score >= 0 && score <= 5;
+
+/** Saves a watched video's score. Invalid scores and videos still to watch cannot be rated. */
+export function setScore(videos: readonly Video[], videoId: string, score: number): Video[] | null {
+  if (!validScore(score)) return null;
+  if (!videos.some((video) => video.videoId === videoId && video.watched)) return null;
+  return videos.map((video) => (video.videoId === videoId ? { ...video, score } : video));
+}
+
+/** Marks a video watched with its score and note in one change; invalid input changes nothing. */
+export function watchVideo(videos: readonly Video[], videoId: string, score: number, note: string, now: Date): Video[] | null {
+  const noted = setNote(videos, videoId, note);
+  return noted ? setScore(setWatched(noted, videoId, true, now), videoId, score) : null;
 }
 
 export const removeVideo = (videos: readonly Video[], videoId: string) => videos.filter((video) => video.videoId !== videoId);
@@ -396,6 +414,7 @@ function readVideo(stored: unknown): Video | null {
     addedAt: date(value.addedAt) ?? new Date(0).toISOString(),
     watched: value.watched === true,
     ...(watchedAt ? { watchedAt } : {}),
+    ...(value.watched === true && validScore(value.score) ? { score: value.score } : {}),
     ...(note ? { note } : {}),
     tags: readTags(value.tags),
     metaStatus: value.metaStatus === "ok" ? "ok" : "failed",

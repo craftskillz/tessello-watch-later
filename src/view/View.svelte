@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import { t } from "../lib/i18n.ts";
   import { droppedText } from "../lib/drop.ts";
-  import { add, load, markWatched, removeAll, setCollapsed, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
+  import { add, load, markToWatch, markWatched, removeAll, setCollapsed, setHideWatched, settings, status, videos } from "../lib/store.svelte.ts";
   import { allTags, holdsVideo, sectionVideos, shelfKey, shelves, type Video, withTag } from "../lib/videos.ts";
   import { ask, pending } from "../lib/confirmation.svelte.ts";
   import { movesInView } from "../lib/moving.svelte.ts";
@@ -12,6 +12,7 @@
   import Row from "./Row.svelte";
   import TagInput from "./TagInput.svelte";
   import VideoCard from "./VideoCard.svelte";
+  import WatchedDialog from "./WatchedDialog.svelte";
 
   let url = $state("");
   const shown = $derived(shelves(settings.hideWatched ? videos.list.filter((video) => !video.watched) : videos.list, settings.order, settings.sections));
@@ -21,6 +22,8 @@
   /** The video whose details are open; they close when it is deleted. */
   let detailsId = $state<string | null>(null);
   const details = $derived(videos.list.find((video) => video.videoId === detailsId));
+  let reviewId = $state<string | null>(null);
+  const review = $derived(videos.list.find((video) => video.videoId === reviewId));
   /**
    * A brief message on what a change did, with a way to undo it when it hid a video, and the videos shown because
    * they were already there.
@@ -31,7 +34,7 @@
   /** The elements the drag is over: a drag over an element of the View enters it before it leaves the one under it. */
   let dragDepth = $state(0);
   /** While a dialog is open, what is dropped is not added: a link dropped in the note is typed into it. */
-  const dialogOpen = $derived(!!details || !!pending.question);
+  const dialogOpen = $derived(!!details || !!review || !!pending.question);
   const dragging = $derived(dragDepth > 0 && status.loaded && !dialogOpen);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
   let highlightTimer: ReturnType<typeof setTimeout> | undefined;
@@ -70,13 +73,20 @@
   /** Chooses a tag for the videos added next, as it was first written if it is in use. */
   const chooseTag = (tag: string) => (newTags = withTag(videos.list, newTags, tag));
 
-  /** Marks a video as watched, or as to watch. A video it hides can be brought back from the message. */
+  /** A watched video returns to watch immediately; the other direction asks for a score and note first. */
   function toggleWatched(video: Video) {
-    const watched = !video.watched;
-    markWatched(video.videoId, watched);
-    if (watched && settings.hideWatched) {
+    if (video.watched) markToWatch(video.videoId);
+    else reviewId = video.videoId;
+  }
+
+  function confirmWatched(score: number, note: string) {
+    if (!review) return;
+    const undoWatch = markWatched(review.videoId, score, note);
+    if (!undoWatch) return;
+    reviewId = null;
+    if (settings.hideWatched) {
       void say(t("marked_watched"), () => {
-        markWatched(video.videoId, false);
+        undoWatch();
         clearNotice();
       });
     }
@@ -234,6 +244,11 @@
   {#if details}
     {#key details.videoId}
       <DetailsDialog video={details} onToggleWatched={toggleWatched} onClose={() => (detailsId = null)} />
+    {/key}
+  {/if}
+  {#if review}
+    {#key review.videoId}
+      <WatchedDialog video={review} onSave={confirmWatched} onClose={() => (reviewId = null)} />
     {/key}
   {/if}
   <ConfirmDialog />

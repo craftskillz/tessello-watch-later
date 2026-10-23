@@ -16,7 +16,9 @@ import {
   removeVideo,
   removeVideos,
   setNote,
+  setScore,
   setWatched,
+  watchVideo,
   type Settings,
   type Video,
 } from "./videos.ts";
@@ -98,10 +100,45 @@ export function add(text: string, tags: readonly string[] = []): Addition | null
   return result;
 }
 
-/** Marks a video as watched, or as to watch. */
-export function markWatched(videoId: string, watched: boolean): void {
+/** Marks a video as to watch, forgetting its score and watched date. */
+export function markToWatch(videoId: string): void {
   if (!status.loaded) return;
-  videos.list = setWatched(videos.list, videoId, watched, new Date());
+  videos.list = setWatched(videos.list, videoId, false, new Date());
+  void save();
+}
+
+/** Saves the dialog in one write. Its undo restores the previous watch state and note, keeping other edits. */
+export function markWatched(videoId: string, score: number, note: string): (() => void) | null {
+  if (!status.loaded) return null;
+  const before = videos.list.find((video) => video.videoId === videoId);
+  const list = watchVideo(videos.list, videoId, score, note, new Date());
+  if (!before || !list) return null;
+  const { watched, watchedAt, score: previousScore, note: previousNote } = $state.snapshot(before);
+  videos.list = list;
+  void save();
+  return () => {
+    if (!status.loaded) return;
+    videos.list = videos.list.map((video) => {
+      if (video.videoId !== videoId) return video;
+      const { watchedAt: _, score: __, note: ___, ...rest } = video;
+      return {
+        ...rest,
+        watched,
+        ...(watchedAt !== undefined ? { watchedAt } : {}),
+        ...(previousScore !== undefined ? { score: previousScore } : {}),
+        ...(previousNote !== undefined ? { note: previousNote } : {}),
+      };
+    });
+    void save();
+  };
+}
+
+/** Updates a watched video's score immediately. */
+export function writeScore(videoId: string, score: number): void {
+  if (!status.loaded) return;
+  const list = setScore(videos.list, videoId, score);
+  if (!list) return;
+  videos.list = list;
   void save();
 }
 
