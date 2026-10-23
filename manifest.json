@@ -2,7 +2,7 @@
   "convention": 1,
   "id": "@craftskillz/watch-later",
   "name": "Watch Later",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Keep the YouTube videos you want to watch later: paste a link, find it again.",
   "icon": "icon.svg",
   "view": {
