@@ -24,13 +24,15 @@ Tags sort your videos by theme. In the details of a video, type a tag in **Add a
 
 To tag videos as you add them, choose tags in **Tags for new videos**, under the field: every video you add next gets them, until you close the page.
 
-The page shows one row per tag, in alphabetical order, then a **No tag** row for the videos without one. A video with two tags is in both rows. Each row says how many videos it holds and scrolls sideways: with a trackpad, with **Shift** and the mouse wheel, with a finger, or with the **‹ ›** buttons. The page itself scrolls from one tag to the next. In each row, the newest videos come first, and each card says when you added it.
+The page shows one row per tag, in alphabetical order, then a **No tag** row for the videos without one. A video with two tags is in both rows. Each row says how many videos it holds and scrolls sideways: with a trackpad, with **Shift** and the mouse wheel, with a finger, or with the **‹ ›** buttons. The page itself scrolls from one tag to the next. Among videos still to watch, those you have never placed come first, newest first, followed by those you placed in their saved order. Each card says when you added it.
 
 To sort your tags in two levels, write a group before the tag, with a slash: `Music/Jazz` is the tag **Jazz** of the group **Music**. A group is a section of the page, with one row per tag of the group; a tag `Music` of its own is its first row. Click the name of a group to fold or unfold it: the page remembers the groups you folded.
 
 ### Moving a video
 
-Drag a card with the mouse to put it elsewhere: a bar shows where it will land. Dropped in its own row, it changes place, and the row keeps the order you gave it; videos you add next come first, before those you placed. Dropped in another row, it leaves the tag of its row for the tag of the other one, and keeps its other tags. A video with other tags cannot go to **No tag**: take them off in its details first.
+Drag a card with the mouse to put it elsewhere. Drag-and-drop only sets the order of videos still to watch: a bar shows where one will land. Dropped in its own row, it changes place, and the row keeps the order you gave it; videos you add next come first, before those you placed. Dropped among watched videos, it goes first among those still to watch.
+
+Dropped in another row, a video leaves the tag of its row for the tag of the other one, and keeps its other tags. A watched video can change rows too, but its score decides its position; dropping it in its own row does not move it. A video with other tags cannot go to **No tag**: take them off in its details first.
 
 ### Moving a row or a group
 
@@ -44,11 +46,15 @@ Point at the header of a row, or at the name of a group, and click **Delete** to
 
 Click the thumbnail or the title of a video to open it on YouTube, in a new tab. Videos play on YouTube rather than in Tessello: Tessello does not let a Module embed another site's page, not even YouTube's player.
 
-Once you have watched a video, click **Watched** on its card; click it again to put the video back among those to watch. **Hide watched**, at the top of the page, is on at first: a video you mark as watched then leaves the page, and **Undo**, in the message that follows, brings it back. Uncheck **Hide watched** to see every video, the watched ones dimmed and marked **✓ Watched**. The page remembers your choice.
+Once you have watched a video, click **Watched** on its card, or **Mark as watched** in its details. A dialog asks for a required score from **0 to 5** and an optional **Note**, filled with your existing note so you can correct it. Click a star to choose a score; clicking the selected star removes one star, including the last one for **0 / 5**. You can also focus the score with the keyboard and use the arrow keys. **Mark as watched** stays disabled until you choose a score. **Cancel**, **Escape** or clicking outside the dialog leaves the video unchanged.
+
+**Hide watched**, at the top of the page, is on at first: a video you mark as watched then leaves the page, and **Undo**, in the message that follows, restores its previous status and note. Uncheck **Hide watched** to see every video, the watched ones dimmed and marked **✓ Watched**, with their score in stars. Every row, including rows inside groups and **No tag**, starts with watched videos from score **5** down to **0**, then older watched videos without a score. At the same score, the most recently watched comes first. Videos still to watch follow in their own order. The page remembers your choice.
+
+Change a watched video's score in **Details**; the new score is saved at once and updates its position. Click **✓ Watched** on the card, or **Mark as to watch** in the details, to put it back among those to watch without a dialog. This forgets its score and watched date, and keeps its note. Its previous manual position is reused if still saved; otherwise it comes among the never-placed videos.
 
 ## Notes and deleting
 
-![The details of a video, with its tag and its note](images/details.png)
+![The details of a watched video, with its score, tag and note](images/details.png)
 
 Click **Details** on a card, or anywhere on the card but its title and thumbnail, to see its channel, when you added it and whether you watched it, and to mark it as watched or to watch.
 
@@ -73,7 +79,7 @@ The Watch Later Widget says how many videos are left to watch and shows the four
 
 ## Your data
 
-Your videos, their tags and notes, and the choice to hide the watched ones are saved in your Tessello space, on your computer, and nowhere else.
+Your videos, their scores, tags and notes, and the choice to hide the watched ones are saved in your Tessello space, on your computer, and nowhere else.
 
 The Module asks for two Permissions when you install it, both to reach YouTube and nothing else:
 

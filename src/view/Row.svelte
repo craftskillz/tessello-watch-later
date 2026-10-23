@@ -66,6 +66,7 @@
   /** Where a dragged section would land, beside this row. */
   let place = $state<"before" | "after" | null>(null);
   const key = $derived(rowKey(tag));
+  const movingWatched = $derived(all.list.some((video) => video.videoId === moving.card?.videoId && video.watched));
 
   function dragStart(event: DragEvent, video: Video) {
     if (!event.dataTransfer) return;
@@ -83,10 +84,11 @@
     place = null;
   }
 
-  /** The card whose middle is right of the pointer, or null past the last one. */
+  /** The unwatched card whose middle is right of the pointer, or null past the last one. */
   function cardAfter(x: number): string | null {
     const items = [...(scroller?.children ?? [])];
-    const index = items.findIndex((item) => {
+    const index = items.findIndex((item, index) => {
+      if (videos[index]?.watched) return false;
       const { left, width } = item.getBoundingClientRect();
       return x < left + width / 2;
     });
@@ -105,7 +107,7 @@
     if (!card || !canMove(all.list, card.videoId, card.from, tag)) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-    target = cardAfter(event.clientX);
+    target = movingWatched ? null : cardAfter(event.clientX);
   }
 
   function dragLeave(event: DragEvent) {
@@ -154,11 +156,11 @@
       <button type="button" class="wl-btn" aria-label={t("scroll_forward", { row: label })} disabled={atEnd} onclick={() => scrollBy(1)}>›</button>
     </span>
   </header>
-  <ul class="wl-cards" class:wl-drop-end={moving.card && target === null} aria-label={label} bind:this={scroller} onscroll={measure}>
+  <ul class="wl-cards" class:wl-drop-end={moving.card && !movingWatched && target === null} aria-label={label} bind:this={scroller} onscroll={measure}>
     {#each videos as video (video.videoId)}
       <li
         draggable="true"
-        class:wl-drop-before={moving.card && target === video.videoId}
+        class:wl-drop-before={moving.card && !movingWatched && target === video.videoId}
         class:wl-moving={moving.card?.videoId === video.videoId && moving.card.from === tag}
         ondragstart={(event) => dragStart(event, video)}
         ondragend={dragEnd}

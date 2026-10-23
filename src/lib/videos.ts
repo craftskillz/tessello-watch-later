@@ -139,7 +139,7 @@ export interface Settings {
   hideWatched: boolean;
   /** The groups folded in the View, whatever their case. */
   collapsed: string[];
-  /** The order the User gave the rows by moving their videos. */
+  /** The order the User gave the unwatched videos of each row. */
   order: Order;
   /**
    * The keys of the sections the User has moved, in the order they put them: the rows (`rowKey`) and the groups
@@ -235,8 +235,8 @@ export interface Row {
 }
 
 /**
- * One row per tag, in alphabetical order, then the videos without a tag, and no empty row. In each, the videos the User
- * has not moved come first, the newest first, then the others in the `order` they were given.
+ * One row per tag, in alphabetical order, then the videos without a tag, and no empty row. Watched videos come first
+ * by score, then watched date; unwatched videos not moved come next, newest first, then those in the saved `order`.
  */
 export function rowsByTag(videos: readonly Video[], order: Order = {}): Row[] {
   const newest = newestFirst(videos);
@@ -245,11 +245,15 @@ export function rowsByTag(videos: readonly Video[], order: Order = {}): Row[] {
   return (untagged.length ? [...rows, { tag: null, videos: untagged }] : rows).map((row) => ({ ...row, videos: arrange(row.videos, order[rowKey(row.tag)]) }));
 }
 
-/** The videos of a row, newest first, with those never moved first, then those `placed`, in their order. */
+/** Watched videos ranked independently of manual placement, followed by the unwatched videos in their own order. */
 function arrange(newest: Video[], placed: readonly string[] = []): Video[] {
+  const watched = newest.filter((video) => video.watched).sort((a, b) =>
+    (b.score ?? -1) - (a.score ?? -1) || (b.watchedAt ?? "").localeCompare(a.watchedAt ?? ""),
+  );
+  const unwatched = newest.filter((video) => !video.watched);
   const rank = new Map(placed.map((videoId, index) => [videoId, index]));
-  const ranked = newest.filter((video) => rank.has(video.videoId)).sort((a, b) => rank.get(a.videoId)! - rank.get(b.videoId)!);
-  return [...newest.filter((video) => !rank.has(video.videoId)), ...ranked];
+  const ranked = unwatched.filter((video) => rank.has(video.videoId)).sort((a, b) => rank.get(a.videoId)! - rank.get(b.videoId)!);
+  return [...watched, ...unwatched.filter((video) => !rank.has(video.videoId)), ...ranked];
 }
 
 /**
@@ -264,8 +268,9 @@ export function canMove(videos: readonly Video[], videoId: string, from: string 
 
 /**
  * Moves a video of the row of `from` before the video `before` of the row of `to`, or at its end when `before` is
- * null. Moved to another row, the video loses the tag `from` and takes the tag `to`, as it was first written. The
- * order kept is that of the rows that still exist. Null when the move is not allowed (`canMove`).
+ * null. Moved to another row, the video loses the tag `from` and takes the tag `to`, as it was first written.
+ * Watched videos only change tags, never manual position. An unwatched video dropped among watched videos goes
+ * before the other unwatched videos. The order kept is that of the rows that still exist. Null when disallowed.
  */
 export function moveVideo(
   videos: readonly Video[],
@@ -276,18 +281,26 @@ export function moveVideo(
   before: string | null,
 ): { videos: Video[]; order: Order } | null {
   if (!canMove(videos, videoId, from, to)) return null;
+  const watched = videos.find((video) => video.videoId === videoId)!.watched;
+  if (watched && rowKey(from) === rowKey(to)) return { videos: [...videos], order };
   let list = [...videos];
   if (rowKey(from) !== rowKey(to)) {
     if (from !== null) list = removeTag(list, videoId, from);
     if (to !== null) list = addTag(list, videoId, to);
   }
   const rows = rowsByTag(list, order);
-  const ids = rows.find((row) => rowKey(row.tag) === rowKey(to))!.videos.map((video) => video.videoId);
-  const others = ids.filter((id) => id !== videoId);
-  // Before itself is where it already is.
-  const at = before === videoId ? ids.indexOf(videoId) : before === null ? -1 : others.indexOf(before);
-  others.splice(at < 0 ? others.length : at, 0, videoId);
-  const moved: Order = { ...order, [rowKey(to)]: others };
+  const moved: Order = { ...order };
+  if (!watched) {
+    const destination = rows.find((row) => rowKey(row.tag) === rowKey(to))!.videos;
+    const ids = destination.filter((video) => !video.watched).map((video) => video.videoId);
+    const others = ids.filter((id) => id !== videoId);
+    // Before itself is where it already is; before a watched video is the start of the unwatched ones.
+    const at = before === videoId ? ids.indexOf(videoId)
+      : destination.some((video) => video.videoId === before && video.watched) ? 0
+      : before === null ? -1 : others.indexOf(before);
+    others.splice(at < 0 ? others.length : at, 0, videoId);
+    moved[rowKey(to)] = others;
+  }
   const kept: Order = {};
   for (const { tag, videos: shown } of rows) {
     const placed = moved[rowKey(tag)];

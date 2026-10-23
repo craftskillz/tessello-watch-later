@@ -1,6 +1,6 @@
 {
   "name": "@craftskillz/watch-later",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Watch Later: keep the YouTube videos to watch later, as a Tessello Module.",
   "license": "MIT",

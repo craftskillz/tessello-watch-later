@@ -298,6 +298,40 @@ describe("the rows of the View", () => {
       ["x"],
     );
   });
+
+  test("watched scores, including zero, come before unrated watched videos, then the unchanged unwatched order in every kind of row", () => {
+    const list = [
+      video(A, "2026-10-01", { watched: true, score: 2 }),
+      video(B, "2026-10-02", { watched: true, score: 5 }),
+      video(C, "2026-10-03", { watched: true, score: 0 }),
+      video(D, "2026-10-09", { watched: true }),
+      video("eeeeeeeeeee", "2026-10-04"),
+      video("fffffffffff", "2026-10-05"),
+      video("ggggggggggg", "2026-10-06"),
+    ];
+    for (const tag of [null, "Music", "Music/Jazz"]) {
+      const videos = list.map((item) => ({ ...item, tags: tag === null ? [] : [tag] }));
+      const order = { [tag?.toLowerCase() ?? ""]: [A, "eeeeeeeeeee", D, B, "fffffffffff", C] };
+      const expected = [B, A, C, D, "ggggggggggg", "eeeeeeeeeee", "fffffffffff"];
+      assert.deepEqual(rowsByTag(videos, order)[0].videos.map((item) => item.videoId), expected);
+      const [shelf] = shelves(videos, order);
+      const row = shelf.kind === "group" ? shelf.rows[0] : shelf;
+      assert.deepEqual(row.videos.map((item) => item.videoId), expected);
+      if (shelf.kind === "group") assert.equal(shelf.count, videos.length);
+      assert.deepEqual(rowsByTag(videos.filter((item) => !item.watched), order)[0].videos.map((item) => item.videoId), expected.slice(4));
+    }
+  });
+
+  test("equal scores use the most recently watched first, with missing watched dates last", () => {
+    const list = [
+      video(A, "2026-10-09", { watched: true, score: 4, watchedAt: "2026-10-02" }),
+      video(B, "2026-10-01", { watched: true, score: 4, watchedAt: "2026-10-03" }),
+      video(C, "2026-10-10", { watched: true, score: 4 }),
+      video(D, "2026-10-11", { watched: true, watchedAt: "2026-10-04" }),
+      video("eeeeeeeeeee", "2026-10-12", { watched: true, watchedAt: "2026-10-03" }),
+    ];
+    assert.deepEqual(rowsByTag(list)[0].videos.map((item) => item.videoId), [B, A, C, D, "eeeeeeeeeee"]);
+  });
 });
 
 describe("moving a video in the View", () => {
@@ -356,6 +390,44 @@ describe("moving a video in the View", () => {
   test("the order of a row that no longer exists, or of a video no longer in it, is forgotten", () => {
     const moved = moveVideo(list, { code: [C], gone: [A], music: [A, "zzzzzzzzzzz", B] }, C, "Code", "Music", A)!;
     assert.deepEqual(moved.order, { music: [C, A, B] });
+  });
+
+  test("a watched video dropped in its own row stays at its score position without changing manual placement", () => {
+    const watched = setScore(setWatched(list, A, true, new Date()), A, 5)!;
+    const order = { music: [B, A, C] };
+    for (const before of [B, C, null]) {
+      const moved = moveVideo(watched, order, A, "Music", "music", before)!;
+      assert.deepEqual(moved, { videos: watched, order });
+      assert.deepEqual(rowsByTag(moved.videos, moved.order)[1].videos.map((item) => item.videoId), [A, B, C]);
+    }
+    const restored = setWatched(watched, A, false, new Date());
+    assert.deepEqual(rowsByTag(restored, order)[1].videos.map((item) => item.videoId), [B, A, C], "its previous placement is available when returned to watch");
+  });
+
+  test("a watched video changes tag and takes its score position, without being added to the destination order", () => {
+    const D = "ddddddddddd";
+    const watched = [
+      ...setScore(setWatched(list, A, true, new Date()), A, 2)!,
+      video(D, "2026-10-04", { watched: true, score: 5, tags: ["Code"] }),
+    ];
+    const moved = moveVideo(watched, { music: [A, B, C], code: [C] }, A, "Music", "Code", D)!;
+    assert.deepEqual(moved.videos[0].tags, ["Code"]);
+    assert.deepEqual(moved.order, { music: [B, C], code: [C] });
+    assert.deepEqual(ids(rowsByTag(moved.videos, moved.order)), [["Code", [D, A, C]], ["Music", [B, C]]]);
+    const restored = setWatched(moved.videos, A, false, new Date());
+    assert.deepEqual(rowsByTag(restored, moved.order)[0].videos.map((item) => item.videoId), [D, A, C], "without a previous placement it is among never-placed videos");
+    const unplaced = moveVideo(watched, {}, A, "Music", "Code", null)!;
+    assert.deepEqual(unplaced.order, {}, "a watched card creates no manual order");
+  });
+
+  test("dropping an unwatched video among watched videos puts it first among unwatched ones, without saving watched ids", () => {
+    const watched = setScore(setWatched(list, C, true, new Date()), C, 5)!;
+    const moved = moveVideo(watched, { music: [A, B, C] }, B, "Music", "Music", C)!;
+    assert.deepEqual(moved.order, { music: [B, A] });
+    assert.deepEqual(rowsByTag(moved.videos, moved.order)[1].videos.map((item) => item.videoId), [C, B, A]);
+    const cross = moveVideo(watched, {}, A, "Music", "Code", C)!;
+    assert.deepEqual(cross.order, { code: [A] });
+    assert.deepEqual(rowsByTag(cross.videos, cross.order)[0].videos.map((item) => item.videoId), [C, A]);
   });
 });
 
