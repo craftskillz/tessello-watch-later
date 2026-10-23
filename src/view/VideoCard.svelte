@@ -112,7 +112,7 @@
     cursor: help;
   }
   .wl-score {
-    color: var(--accent-strong);
+    color: var(--score-gold);
     letter-spacing: 2px;
   }
   /* The card of a video added again, shown a moment. */

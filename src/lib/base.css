@@ -13,10 +13,14 @@
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   --red: #e11d48;
   --red-soft: color-mix(in srgb, var(--red) 12%, transparent);
+  --score-gold: #a66b0a;
+  --score-fill: #f5bc42;
 }
 
 :root.dark {
   --red: #f87171;
+  --score-gold: #efbd4e;
+  --score-fill: #f5c451;
 }
 
 * {
