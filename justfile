@@ -29,7 +29,8 @@ publish bump:
     if [ "$(git branch --show-current)" != "main" ]; then echo "Publish from main." >&2; exit 1; fi
     if [ -n "$(git status --porcelain)" ]; then echo "Commit or stash your changes first." >&2; exit 1; fi
     git pull --ff-only --quiet
-    # Checked before anything is tagged, so that a broken version is never published.
+    # Installs exactly the locked dependencies, then checks before anything is tagged, so that a broken version is never published.
+    npm ci --silent
     npm run typecheck --silent
     npm test --silent >/dev/null
     npm run build --silent
