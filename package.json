@@ -4,15 +4,29 @@
   "private": true,
   "description": "Watch Later: keep the YouTube videos to watch later, as a Tessello Module.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/craftskillz/tessello-watch-later.git"
+  },
+  "homepage": "https://github.com/craftskillz/tessello-watch-later#readme",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "build": "node scripts/build.ts"
+    "build": "node scripts/build.ts",
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@tessello/sdk": "0.1.0"
   },
   "devDependencies": {
+    "@types/node": "^24.10.0",
+    "esbuild": "^0.28.2",
     "esbuild-svelte": "^0.9.5",
-    "svelte": "^5.57.2"
+    "svelte": "^5.57.2",
+    "tessello": "0.1.0",
+    "typescript": "~5.9.3"
   }
 }

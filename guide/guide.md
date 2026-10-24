@@ -87,3 +87,7 @@ The Module asks for two Permissions when you install it, both to reach YouTube a
 - `https://i.ytimg.com`, where YouTube keeps the thumbnails, to show them.
 
 Uninstalling the Module deletes your videos.
+
+## About Watch Later
+
+Watch Later is a Module of [Tessello](https://github.com/craftskillz/tessello), published by @craftskillz under the MIT license. Its sources, its versions and its issues are at https://github.com/craftskillz/tessello-watch-later.

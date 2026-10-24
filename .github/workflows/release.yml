@@ -1,0 +1,55 @@
+# On a tag v<version>, builds the package and publishes it on GitHub Pages as <version>.zip, served at
+# https://craftskillz.github.io/tessello-watch-later/<version>.zip with Access-Control-Allow-Origin: *. A published version is
+# never overwritten: its listing in the Marketplace is pinned to the fingerprint of its bytes.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Check that the tag is the version of the Manifest
+        run: |
+          version=$(node -p "require('./manifest.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag $GITHUB_REF_NAME is not the version of manifest.json ($version)." >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx tessello validate dist
+      - run: cd dist && zip -qrX "../$VERSION.zip" .
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+      - name: Publish on GitHub Pages, never overwriting a version
+        run: |
+          if [ -e "pages/$VERSION.zip" ]; then
+            echo "$VERSION.zip is already published: raise the version instead." >&2
+            exit 1
+          fi
+          cp "$VERSION.zip" pages/
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$VERSION.zip"
+          git commit -m "Publish $VERSION"
+          git push
