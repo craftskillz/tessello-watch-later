@@ -42,4 +42,4 @@ publish bump:
     git commit --quiet -am "Release $version"
     git tag "v$version"
     git push --quiet origin main "v$version"
-    echo "v$version pushed: it will be at https://craftskillz.github.io/$(basename "$(git rev-parse --show-toplevel)")/$version.zip once the Release workflow is done."
+    echo "v$version pushed: it will be at https://craftskillz.github.io/$(basename -s .git "$(git remote get-url origin)")/$version.zip once the Release workflow is done."
