@@ -31,9 +31,15 @@ With [just](https://github.com/casey/just): `just test`, `just typecheck`, `just
 
 ## Release
 
-From an up-to-date `main` with nothing to commit, run `just publish minor` (or `major`, `patch`, `fix`). It checks types and tests, builds and validates the package, raises the version in `package.json`, `package-lock.json` and `manifest.json`, commits, tags `v<version>` and pushes. The Release workflow then publishes the package on GitHub Pages as `<version>.zip`. A published version is never overwritten: a listing in the Marketplace is pinned to the fingerprint of its bytes.
+From an up-to-date `main` with nothing to commit:
 
-To list that version on the [Marketplace](https://tessello-marketplace.pages.dev/), once the Release workflow is green: `just marketplace watch-later` in the `tessello` repository. The steps are in [RELEASING.md](https://github.com/craftskillz/tessello/blob/main/RELEASING.md).
+```sh
+just publish minor    # or major, patch, fix
+```
+
+It checks types and tests, builds and validates the package, raises the version in `package.json`, `package-lock.json` and `manifest.json`, commits, tags `v<version>` and pushes. The Release workflow then publishes the package on GitHub Pages as `<version>.zip`; `just publish` waits for it, then offers to list that version on the [Marketplace](https://tessello-marketplace.pages.dev/). Answering yes means you accept the Marketplace's [PUBLISHING.md](https://github.com/craftskillz/tessello-marketplace/blob/main/PUBLISHING.md): it downloads the published `.zip` and runs `tessello publish`, which checks it as the Marketplace CI will and opens the pull request with the [GitHub CLI](https://cli.github.com/) (`gh auth login` first). A new Module waits for the Maintainer's Approval; a new version is merged once the CI passes.
+
+To list the current version later, or again after a failure: `just marketplace` (`just marketplace --dry-run` only checks). A published version is never overwritten: a listing in the Marketplace is pinned to the fingerprint of its bytes.
 
 ## License
 
