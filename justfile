@@ -7,6 +7,11 @@ default:
 test:
     npm test
 
+# Browser tests of the View and the Widget against the Test Host of the SDK (builds dist/ first; E2E_CPU_SLOWDOWN=4 runs
+# them as slowly as on a CI machine)
+e2e:
+    npm run test:browser
+
 # Type checking
 typecheck:
     npm run typecheck
@@ -32,7 +37,7 @@ publish bump:
     npm ci --silent
     npm run typecheck --silent
     npm test --silent >/dev/null
-    npm run build --silent
+    npm run test:browser --silent >/dev/null
     npx tessello validate dist >/dev/null
     # package.json and package-lock.json through npm, then the Manifest, so that all three keep the same version.
     version=$(npm version "$bump" --no-git-tag-version | sed 's/^v//')

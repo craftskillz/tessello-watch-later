@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parseYouTubeUrl } from "../src/lib/youtube.ts";
+import { oembedUrl, parseYouTubeUrl, thumbnailUrl } from "../src/lib/youtube.ts";
 
 const ID = "dQw4w9WgXcQ";
 
@@ -63,5 +63,18 @@ describe("recognizing a YouTube video in what the User pastes", () => {
     ]) {
       assert.equal(parseYouTubeUrl(text), null, text);
     }
+  });
+});
+
+describe("the URLs built from the id of a video", () => {
+  test("the thumbnail is the medium one of i.ytimg.com", () => {
+    assert.equal(thumbnailUrl(ID), `https://i.ytimg.com/vi/${ID}/mqdefault.jpg`);
+  });
+
+  test("the oEmbed request asks for the watch URL of the video, without its start, in JSON", () => {
+    const url = new URL(oembedUrl(ID));
+    assert.equal(`${url.origin}${url.pathname}`, "https://www.youtube.com/oembed");
+    assert.equal(url.searchParams.get("url"), `https://www.youtube.com/watch?v=${ID}`);
+    assert.equal(url.searchParams.get("format"), "json");
   });
 });
